@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.pytest_cache/
+test_extraction/
+test_chroma_db/
+test_mcp.py
