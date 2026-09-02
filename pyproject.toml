@@ -2,9 +2,10 @@
 name = "scholar-agent-kit"
 version = "0.1.0"
 description = "MCP Server exposing all Nexus Scholar tools to AI Agents"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 dependencies = [
     "mcp",
+    "scholar-protocol-kit",
     "scholar-search-kit",
     "scholar-bib-kit",
     "scholar-pdf-kit[extract]",
@@ -13,11 +14,12 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-scholar-search-kit = { path = "../scholar-search-kit" }
-scholar-bib-kit = { path = "../scholar-bib-kit" }
-scholar-pdf-kit = { path = "../scholar-pdf-kit" }
-scholar-rag-kit = { path = "../scholar-rag-kit" }
-scholar-graph-kit = { path = "../scholar-graph-kit" }
+scholar-protocol-kit = { path = "../scholar-protocol-kit", editable = true }
+scholar-search-kit = { path = "../scholar-search-kit", editable = true }
+scholar-bib-kit = { path = "../scholar-bib-kit", editable = true }
+scholar-pdf-kit = { path = "../scholar-pdf-kit", editable = true }
+scholar-rag-kit = { path = "../scholar-rag-kit", editable = true }
+scholar-graph-kit = { path = "../scholar-graph-kit", editable = true }
 
 [project.scripts]
 scholar-agent = "scholar_agent.server:main"

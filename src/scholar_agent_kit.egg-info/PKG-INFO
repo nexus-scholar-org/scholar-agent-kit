@@ -1,0 +1,12 @@
+Metadata-Version: 2.4
+Name: scholar-agent-kit
+Version: 0.1.0
+Summary: MCP Server exposing all Nexus Scholar tools to AI Agents
+Requires-Python: >=3.11
+Requires-Dist: mcp
+Requires-Dist: scholar-protocol-kit
+Requires-Dist: scholar-search-kit
+Requires-Dist: scholar-bib-kit
+Requires-Dist: scholar-pdf-kit[extract]
+Requires-Dist: scholar-rag-kit
+Requires-Dist: scholar-graph-kit
