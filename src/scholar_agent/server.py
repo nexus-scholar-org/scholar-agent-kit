@@ -23,8 +23,9 @@ from scholar_search.dedup import Deduplicator
 from scholar_search.export import Exporter
 from scholar_search.importers import JSONImporter
 from scholar_search.models import Document
-from scholar_search.screening import evaluate_heuristic_screening, partition_screening_results
+from scholar_search.screening import evaluate_heuristic_screening, partition_screening_results, reconcile_multi_screener_decisions, calculate_fleiss_kappa
 from scholar_pdf.extract import PyMuPDFEngine
+from scholar_verify.verbatim import VerbatimClaimVerifier
 
 # Phase 2 Imports
 from scholar_rag.indexer import ScholarIndexer
@@ -371,6 +372,99 @@ def nexus_bib_clean(input_bib_path: str, output_bib_path: str = None) -> str:
         return f"Cleaned BibTeX saved to {output_path}"
     except Exception as e:
         return f"Error cleaning BibTeX: {e}"
+
+
+# ==============================================================================
+# Phase 4 / Rigor Enhancement: Multi-Screener Reconciliation & Verbatim Attributions
+# ==============================================================================
+
+@mcp.tool()
+def nexus_screen_reconcile(screeners_json: str, adjudication_json: str = None) -> str:
+    """
+    Reconcile multi-screener screening decisions using strict majority voting and compute Fleiss' Kappa.
+    
+    Args:
+        screeners_json: Path to JSON mapping screener_id -> {workspace_id: 'INCLUDE'|'EXCLUDE'} or path to a directory containing batch_*_decisions*.json.
+        adjudication_json: Optional path to JSON file with adjudicated tie-breaking decisions.
+    """
+    try:
+        p = Path(screeners_json)
+        screeners_map: dict[str, dict[str, str]] = {}
+        if p.is_dir():
+            for f in p.glob("batch_*_decisions*.json"):
+                # derive screener key
+                parts = f.stem.split("_decisions")
+                screener_key = parts[1].strip("_") if len(parts) > 1 and parts[1] else "screener1"
+                if screener_key not in screeners_map:
+                    screeners_map[screener_key] = {}
+                data = json.loads(f.read_text(encoding="utf-8"))
+                records = data if isinstance(data, list) else data.get("decisions", [])
+                for r in records:
+                    wid = r.get("workspace_id") or r.get("study_id")
+                    dec = r.get("decision")
+                    if wid and dec:
+                        screeners_map[screener_key][wid] = dec.upper()
+        elif p.is_file():
+            screeners_map = json.loads(p.read_text(encoding="utf-8"))
+        else:
+            screeners_map = json.loads(screeners_json)
+
+        adj_map = {}
+        if adjudication_json:
+            ap = Path(adjudication_json)
+            if ap.is_file():
+                raw_adj = json.loads(ap.read_text(encoding="utf-8"))
+                if isinstance(raw_adj, list):
+                    for item in raw_adj:
+                        if item.get("workspace_id") and item.get("decision"):
+                            adj_map[item["workspace_id"]] = item["decision"]
+                elif isinstance(raw_adj, dict):
+                    adj_map = raw_adj
+
+        res = reconcile_multi_screener_decisions(screeners_map, adj_map)
+        return json.dumps(res, indent=2)
+    except Exception as e:
+        return json.dumps({"status": "ERROR", "error": str(e)})
+
+
+@mcp.tool()
+def nexus_verify_claims(claims_json_path: str, extracted_dir_path: str, threshold: float = 0.90) -> str:
+    """
+    Verify claim quotes against extracted Markdown files using token n-gram and char-window matching.
+    
+    Args:
+        claims_json_path: Path to synthesis claims JSON (e.g. synthesis/claims.json).
+        extracted_dir_path: Directory containing extracted source markdown documents.
+        threshold: Coverage threshold (default 0.90).
+    """
+    try:
+        cp = Path(claims_json_path)
+        ed = Path(extracted_dir_path)
+        if not cp.is_file():
+            return json.dumps({"status": "ERROR", "error": f"Claims file not found: {claims_json_path}"})
+        if not ed.is_dir():
+            return json.dumps({"status": "ERROR", "error": f"Extracted directory not found: {extracted_dir_path}"})
+
+        claims = json.loads(cp.read_text(encoding="utf-8"))
+        source_texts = {}
+        for f in ed.glob("*.md"):
+            content = f.read_text(encoding="utf-8", errors="replace")
+            source_texts[f.stem] = content
+            # Try to index by SCI-xxxx if found
+            import re
+            m = re.search(r"workspace_id:\s*['\"]?(SCI-\d+)['\"]?", content)
+            if m:
+                source_texts[m.group(1)] = content
+            m2 = re.search(r"(SCI-\d+)", f.name)
+            if m2:
+                source_texts[m2.group(1)] = content
+
+        verifier = VerbatimClaimVerifier(threshold=threshold)
+        results, metrics = verifier.verify_claims_ledger(claims, source_texts)
+        return json.dumps({"status": "SUCCESS", "metrics": metrics}, indent=2)
+    except Exception as e:
+        return json.dumps({"status": "ERROR", "error": str(e)})
+
 
 
 # ==============================================================================
