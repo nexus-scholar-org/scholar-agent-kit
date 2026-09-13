@@ -1241,7 +1241,6 @@ def main(argv: list[str] | None = None) -> None:
         os.environ["NEXUS_MCP_WORKSPACE"] = str(ws_path)
         if "NEXUS_RECON_ROOT" not in os.environ:
             os.environ["NEXUS_RECON_ROOT"] = str(ws_path / ".cache" / "inception_recon")
-        os.chdir(ws_path)
 
     mcp.run(transport=args.transport)
 
