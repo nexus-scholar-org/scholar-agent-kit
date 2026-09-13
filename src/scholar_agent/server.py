@@ -1228,8 +1228,12 @@ def main(argv: list[str] | None = None) -> None:
         choices=["stdio", "sse", "streamable-http"],
         help="Transport protocol to use (default: stdio).",
     )
-
-    args = parser.parse_args(argv)
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as exc:
+        if exc.code == 0:
+            return
+        raise
 
     if args.workspace:
         ws_path = Path(args.workspace).resolve()
