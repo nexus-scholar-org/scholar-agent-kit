@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -81,6 +82,13 @@ def _harness_src() -> str:
     env_override = os.environ.get("NEXUS_HARNESS_SRC")
     if env_override:
         return env_override
+    try:
+        # Installed-package layout (distribution wheel / site-packages):
+        # scholar_harness.recon imports normally, nothing to inject.
+        if importlib.util.find_spec("scholar_harness.recon") is not None:
+            return ""
+    except (ImportError, ValueError, AttributeError):
+        pass
     here = Path(__file__).resolve()
     for parent in here.parents:
         candidate = parent / "src" / "scholar_harness" / "recon" / "__init__.py"
@@ -94,7 +102,7 @@ def _harness_src() -> str:
 
 
 _HARNESS_SRC = _harness_src()
-if _HARNESS_SRC not in sys.path:
+if _HARNESS_SRC and _HARNESS_SRC not in sys.path:
     sys.path.insert(0, _HARNESS_SRC)
 
 # Recon cache root (P4): computed AFTER the scholar_harness import below via
