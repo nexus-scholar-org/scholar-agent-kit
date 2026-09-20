@@ -8,4 +8,6 @@ src/scholar_agent_kit.egg-info/entry_points.txt
 src/scholar_agent_kit.egg-info/requires.txt
 src/scholar_agent_kit.egg-info/top_level.txt
 tests/test_calibration.py
+tests/test_pipeline.py
+tests/test_screening.py
 tests/test_server.py

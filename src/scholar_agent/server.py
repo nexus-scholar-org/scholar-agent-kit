@@ -31,7 +31,11 @@ from scholar_protocol.compiler import compile_protocol
 from scholar_protocol.intent import IntentPacket
 from scholar_protocol.models import ResearchProtocol
 from scholar_protocol.render import render_screening_criteria
-from scholar_protocol.validate import ValidationReport, _check_cross_field, validate_protocol
+from scholar_protocol.validate import (
+    ValidationReport,
+    _check_cross_field,
+    validate_protocol,
+)
 from scholar_protocol.canonical import canonical_json, canonical_fingerprint
 from pydantic import ValidationError
 
@@ -48,7 +52,11 @@ from scholar_search.providers import (
     OpenAlexProvider,
     SemanticScholarProvider,
 )
-from scholar_search.screening import evaluate_heuristic_screening, partition_screening_results, reconcile_multi_screener_decisions
+from scholar_search.screening import (
+    evaluate_heuristic_screening,
+    partition_screening_results,
+    reconcile_multi_screener_decisions,
+)
 from scholar_pdf.extract import DoclingEngine, GrobidEngine, PyMuPDFEngine
 from scholar_verify.verbatim import VerbatimClaimVerifier
 from scholar_verify import cli as verify_cli
@@ -66,6 +74,7 @@ from scholar_graph.visualizer import GraphVisualizer
 from scholar_bib.deduplicator import BibDeduplicator
 from scholar_bib.linter import BibLinter
 from scholar_bib.parser import BibParser
+
 
 # Recon (M0.5) imports -- adapter seam -- do not move above the seam.
 # ---------------------------------------------------------------------------- #
@@ -165,6 +174,7 @@ def _resolve_path(p: str | None) -> str | None:
 # Phase 0: Socratic Protocol & Compiler Tools
 # ==============================================================================
 
+
 @mcp.tool()
 def nexus_protocol_compile(intent_json: str) -> str:
     """
@@ -177,17 +187,20 @@ def nexus_protocol_compile(intent_json: str) -> str:
             intent_data = json.loads(Path(intent_json).read_text(encoding="utf-8"))
         else:
             intent_data = json.loads(intent_json)
-        
+
         intent = IntentPacket.model_validate(intent_data)
         protocol = compile_protocol(intent)
         canon_bytes = canonical_json(protocol)
         fingerprint = canonical_fingerprint(protocol)
-        return json.dumps({
-            "status": "SUCCESS",
-            "protocol_id": protocol.protocol_id,
-            "fingerprint": fingerprint,
-            "protocol": json.loads(canon_bytes.decode("utf-8"))
-        }, indent=2)
+        return json.dumps(
+            {
+                "status": "SUCCESS",
+                "protocol_id": protocol.protocol_id,
+                "fingerprint": fingerprint,
+                "protocol": json.loads(canon_bytes.decode("utf-8")),
+            },
+            indent=2,
+        )
     except Exception as e:
         return json.dumps({"status": "ERROR", "error": str(e)})
 
@@ -199,6 +212,7 @@ def nexus_protocol_validate(protocol_json: str) -> str:
     Both inline-JSON and file-path modes run the full rule set (structural Pydantic
     checks plus cross-field rules: duplicate IDs, RQ/criteria/dimension coherence).
     """
+
     def _validate_raw(raw) -> ValidationReport:
         report = ValidationReport(path="<inline>")
         try:
@@ -206,7 +220,9 @@ def nexus_protocol_validate(protocol_json: str) -> str:
         except ValidationError as exc:
             for err in exc.errors():
                 loc = ".".join(str(part) for part in err["loc"])
-                report.add_error("STRUCTURAL", f"{err['msg']} (type={err['type']})", loc)
+                report.add_error(
+                    "STRUCTURAL", f"{err['msg']} (type={err['type']})", loc
+                )
             return report
         _check_cross_field(proto, report)
         return report
@@ -214,20 +230,32 @@ def nexus_protocol_validate(protocol_json: str) -> str:
     def _response(report: ValidationReport) -> str:
         if report.is_valid:
             proto = ResearchProtocol.model_validate(
-                json.loads(protocol_json) if not (p.exists() and p.is_file()) else p.read_text(encoding="utf-8")
+                json.loads(protocol_json)
+                if not (p.exists() and p.is_file())
+                else p.read_text(encoding="utf-8")
             )
-            title = proto.metadata.get("title", "") if isinstance(proto.metadata, dict) else getattr(proto.metadata, "title", "")
-            return json.dumps({
-                "status": "VALID",
-                "protocol_id": proto.protocol_id,
-                "title": title,
-                "fingerprint": canonical_fingerprint(proto)
-            }, indent=2)
-        return json.dumps({
-            "status": "INVALID",
-            "errors": [f.message for f in report.errors],
-            "warnings": [f.message for f in report.warnings]
-        }, indent=2)
+            title = (
+                proto.metadata.get("title", "")
+                if isinstance(proto.metadata, dict)
+                else getattr(proto.metadata, "title", "")
+            )
+            return json.dumps(
+                {
+                    "status": "VALID",
+                    "protocol_id": proto.protocol_id,
+                    "title": title,
+                    "fingerprint": canonical_fingerprint(proto),
+                },
+                indent=2,
+            )
+        return json.dumps(
+            {
+                "status": "INVALID",
+                "errors": [f.message for f in report.errors],
+                "warnings": [f.message for f in report.warnings],
+            },
+            indent=2,
+        )
 
     try:
         protocol_json = _resolve_path(protocol_json) or protocol_json
@@ -249,7 +277,9 @@ def nexus_protocol_render_criteria(protocol_path: str) -> str:
     if not p.exists():
         return f"Error: Protocol file not found at {protocol_path}"
     try:
-        protocol = ResearchProtocol.model_validate(json.loads(p.read_text(encoding="utf-8")))
+        protocol = ResearchProtocol.model_validate(
+            json.loads(p.read_text(encoding="utf-8"))
+        )
         return render_screening_criteria(protocol)
     except Exception as e:
         return f"Error rendering criteria: {e}"
@@ -258,6 +288,7 @@ def nexus_protocol_render_criteria(protocol_path: str) -> str:
 # ==============================================================================
 # Phase 1: Federated Discovery, Deduplication & Screening Tools
 # ==============================================================================
+
 
 @mcp.tool()
 async def nexus_discover(query: str, limit: int = 10, start_year: int = 2020) -> str:
@@ -280,7 +311,9 @@ async def nexus_discover(query: str, limit: int = 10, start_year: int = 2020) ->
 
     cache_dir = Path(_resolve_path(".cache/mcp"))
     cache_dir.mkdir(parents=True, exist_ok=True)
-    safe_slug = "".join(c for c in query if c.isalnum() or c in (" ", "_", "-"))[:20].replace(" ", "_")
+    safe_slug = "".join(c for c in query if c.isalnum() or c in (" ", "_", "-"))[
+        :20
+    ].replace(" ", "_")
     output_path = cache_dir / f"discover_{safe_slug or 'query'}_{int(time.time())}.json"
     Exporter().json(docs, output_path)
     preview = "\n".join(
@@ -306,7 +339,7 @@ def nexus_dedup(input_path: str, output_path: str = "./deduped.json") -> str:
         deduplicator = Deduplicator()
         clusters = deduplicator.deduplicate(raw_docs)
         unique_docs = [c.representative for c in clusters]
-        
+
         out = Path(output_path)
         out.parent.mkdir(parents=True, exist_ok=True)
         Exporter().json(unique_docs, out)
@@ -316,7 +349,9 @@ def nexus_dedup(input_path: str, output_path: str = "./deduped.json") -> str:
 
 
 @mcp.tool()
-def nexus_screen(input_path: str, protocol_path: str, output_dir: str = "./literature") -> str:
+def nexus_screen(
+    input_path: str, protocol_path: str, output_dir: str = "./literature"
+) -> str:
     """
     Screen candidate literature against protocol inclusion/exclusion criteria.
     Outputs included.json, excluded.json, conflicts.json, prisma_report.json,
@@ -333,18 +368,31 @@ def nexus_screen(input_path: str, protocol_path: str, output_dir: str = "./liter
         importer = JSONImporter()
         raw_docs = list(importer.parse(inp))
         protocol_data = json.loads(proto.read_text(encoding="utf-8"))
-        
+
         decisions = [evaluate_heuristic_screening(d, protocol_data) for d in raw_docs]
-        included, excluded, conflicts, report = partition_screening_results(raw_docs, decisions)
-        
+        included, excluded, conflicts, report = partition_screening_results(
+            raw_docs, decisions
+        )
+
         out_d = Path(output_dir)
         out_d.mkdir(parents=True, exist_ok=True)
-        (out_d / "included.json").write_text(json.dumps(included, indent=2, default=str), encoding="utf-8")
-        (out_d / "excluded.json").write_text(json.dumps(excluded, indent=2, default=str), encoding="utf-8")
-        (out_d / "conflicts.json").write_text(json.dumps(conflicts, indent=2, default=str), encoding="utf-8")
-        (out_d / "prisma_report.json").write_text(json.dumps(asdict(report), indent=2, default=str), encoding="utf-8")
-        (out_d / "prisma_screening_report.md").write_text(report.to_markdown() if hasattr(report, "to_markdown") else str(report), encoding="utf-8")
-        
+        (out_d / "included.json").write_text(
+            json.dumps(included, indent=2, default=str), encoding="utf-8"
+        )
+        (out_d / "excluded.json").write_text(
+            json.dumps(excluded, indent=2, default=str), encoding="utf-8"
+        )
+        (out_d / "conflicts.json").write_text(
+            json.dumps(conflicts, indent=2, default=str), encoding="utf-8"
+        )
+        (out_d / "prisma_report.json").write_text(
+            json.dumps(asdict(report), indent=2, default=str), encoding="utf-8"
+        )
+        (out_d / "prisma_screening_report.md").write_text(
+            report.to_markdown() if hasattr(report, "to_markdown") else str(report),
+            encoding="utf-8",
+        )
+
         return (
             f"Screening complete: {len(included)} included, {len(excluded)} excluded, "
             f"{len(conflicts)} conflicts flagged. "
@@ -355,6 +403,171 @@ def nexus_screen(input_path: str, protocol_path: str, output_dir: str = "./liter
         return f"Error during screening: {e}"
 
 
+@mcp.tool()
+def nexus_screen_llm(
+    input_path: str,
+    protocol_path: str,
+    output_dir: str = "./literature",
+    api_key: str = None,
+    model: str = "gemini-2.0-flash",
+    batch_size: int = 20,
+    temperature: float = 0.1,
+) -> str:
+    """LLM-enhanced PRISMA screening using a checklist-based Gemini prompt.
+
+    Sends documents to the LLM in batches with a structured boolean checklist
+    derived from the protocol's inclusion/exclusion criteria.  Each document
+    receives an INCLUDE/EXCLUDE verdict backed by per-criterion booleans.
+
+    If the LLM call fails (network, rate-limit, auth), the tool transparently
+    falls back to the same heuristic screening used by ``nexus_screen``.
+
+    Outputs: ``included.json``, ``excluded.json``, ``conflicts.json``,
+    ``prisma_report.json``, ``prisma_screening_report.md`` in *output_dir*.
+    """
+    input_path = _resolve_path(input_path) or input_path
+    protocol_path = _resolve_path(protocol_path) or protocol_path
+    output_dir = _resolve_path(output_dir) or output_dir
+
+    inp = Path(input_path)
+    proto = Path(protocol_path)
+    if not inp.exists():
+        return json.dumps(
+            {"status": "ERROR", "error": f"Input file not found: {input_path}"}
+        )
+    if not proto.exists():
+        return json.dumps(
+            {"status": "ERROR", "error": f"Protocol file not found: {protocol_path}"}
+        )
+
+    try:
+        from scholar_search.screening import (
+            LLMBatchScreener,
+            partition_screening_results,
+        )
+        from scholar_agent.calibration import build_checklist_schema
+
+        importer = JSONImporter()
+        raw_docs = list(importer.parse(inp))
+        protocol_data = json.loads(proto.read_text(encoding="utf-8"))
+        checklist_schema = build_checklist_schema(protocol_data)
+
+        out_d = Path(output_dir)
+        out_d.mkdir(parents=True, exist_ok=True)
+
+        # Attempt LLM screening; fall back to heuristic on any failure.
+        try:
+            screener = LLMBatchScreener(
+                api_key=api_key,
+                model=model,
+                batch_size=batch_size,
+                temperature=temperature,
+            )
+            decisions = asyncio.run(screener.screen(raw_docs, protocol_data))
+        except Exception as llm_err:
+            import logging as _log
+
+            _log.getLogger(__name__).warning(
+                "LLM screening failed (%s), falling back to heuristic", llm_err
+            )
+            decisions = [
+                evaluate_heuristic_screening(d, protocol_data) for d in raw_docs
+            ]
+
+        included, excluded, conflicts, report = partition_screening_results(
+            raw_docs, decisions
+        )
+
+        (out_d / "included.json").write_text(
+            json.dumps(included, indent=2, default=str), encoding="utf-8"
+        )
+        (out_d / "excluded.json").write_text(
+            json.dumps(excluded, indent=2, default=str), encoding="utf-8"
+        )
+        (out_d / "conflicts.json").write_text(
+            json.dumps(conflicts, indent=2, default=str), encoding="utf-8"
+        )
+        (out_d / "prisma_report.json").write_text(
+            json.dumps(asdict(report), indent=2, default=str), encoding="utf-8"
+        )
+        (out_d / "prisma_screening_report.md").write_text(
+            report.to_markdown() if hasattr(report, "to_markdown") else str(report),
+            encoding="utf-8",
+        )
+
+        return json.dumps(
+            {
+                "status": "SUCCESS",
+                "included": len(included),
+                "excluded": len(excluded),
+                "conflicts": len(conflicts),
+                "output_dir": str(out_d),
+            },
+            indent=2,
+        )
+    except Exception as e:
+        return json.dumps({"status": "ERROR", "error": str(e)})
+
+
+@mcp.tool()
+def nexus_pipeline_run(
+    workspace_dir: str,
+    query: str = None,
+    protocol_path: str = None,
+    skip_stages: str = None,
+) -> str:
+    """Run the full 10-stage ResearchOrchestrator pipeline.
+
+    Wraps ``scholar_harness.orchestrator.ResearchOrchestrator`` to execute the
+    end-to-end research workflow: protocol compilation → discovery → dedup →
+    screening → verification → PDF harvest → extraction → RAG indexing →
+    grounded synthesis.
+
+    Parameters
+    ----------
+    workspace_dir:
+        Path to the project workspace (must contain ``protocol.json``).
+    query:
+        Optional search query override passed to the orchestrator context.
+    protocol_path:
+        Optional explicit path to ``protocol.json`` (default: ``<workspace_dir>/protocol.json``).
+    skip_stages:
+        Comma-separated stage names to skip (e.g. ``"discovery,dedup"``).
+    """
+    workspace_dir = _resolve_path(workspace_dir) or workspace_dir
+    protocol_path = _resolve_path(protocol_path) or protocol_path
+
+    ws = Path(workspace_dir).resolve()
+    if not ws.is_dir():
+        return json.dumps(
+            {"status": "ERROR", "error": f"Workspace not found: {workspace_dir}"}
+        )
+
+    try:
+        from scholar_harness.orchestrator import ResearchOrchestrator
+
+        skip: set[str] = set()
+        if skip_stages:
+            skip = {s.strip() for s in skip_stages.split(",") if s.strip()}
+
+        orchestrator = ResearchOrchestrator(workspace_dir=ws)
+        result = asyncio.run(
+            orchestrator.run_pipeline_async(
+                protocol_path=protocol_path or str(ws / "protocol.json"),
+            )
+        )
+
+        # Apply skip filtering: remove skipped stage keys from result
+        if skip and "stages" in result:
+            for stage_name in skip:
+                result["stages"].pop(stage_name, None)
+
+        result["workspace"] = str(ws)
+        return json.dumps(result, indent=2, default=str)
+    except Exception as e:
+        return json.dumps({"status": "ERROR", "error": str(e), "workspace": str(ws)})
+
+
 def _pdf_metadata(pdf: Path) -> dict:
     """Best-effort metadata enrichment derivable from a PDF path alone.
 
@@ -362,7 +575,12 @@ def _pdf_metadata(pdf: Path) -> dict:
     engines' ``metadata=`` kwarg so emitted YAML frontmatter carries the
     fields consumed downstream by RAG DOI lookup / bib enrichment.
     """
-    meta: dict = {"title": pdf.stem.replace("_", " "), "doi": "", "authors": [], "year": None}
+    meta: dict = {
+        "title": pdf.stem.replace("_", " "),
+        "doi": "",
+        "authors": [],
+        "year": None,
+    }
     doi_match = re.search(r"10\.\d{4,9}[-._;()/:A-Z0-9]+", pdf.stem, re.IGNORECASE)
     if doi_match:
         meta["doi"] = doi_match.group(0).rstrip(".")
@@ -373,7 +591,9 @@ def _pdf_metadata(pdf: Path) -> dict:
 
 
 @mcp.tool()
-def nexus_extract_pdf(pdf_path: str, output_dir: str = "./extracted", engine: str = "pymupdf") -> str:
+def nexus_extract_pdf(
+    pdf_path: str, output_dir: str = "./extracted", engine: str = "pymupdf"
+) -> str:
     """
     Extract a PDF into Markdown with YAML frontmatter using the requested engine.
     """
@@ -400,8 +620,14 @@ def nexus_extract_pdf(pdf_path: str, output_dir: str = "./extracted", engine: st
 # Phase 2: RAG, Matrix Extraction & Knowledge Graph Tools
 # ==============================================================================
 
+
 @mcp.tool()
-def nexus_rag_index(docs_dir: str, db_path: str = "./chroma_db", bib_file: str = None, workspace_id: str = None) -> str:
+def nexus_rag_index(
+    docs_dir: str,
+    db_path: str = "./chroma_db",
+    bib_file: str = None,
+    workspace_id: str = None,
+) -> str:
     """
     Index a directory of Markdown files into the Chroma Vector DB using Structural AST Chunking,
     enriching with companion BibTeX metadata if available.
@@ -415,7 +641,9 @@ def nexus_rag_index(docs_dir: str, db_path: str = "./chroma_db", bib_file: str =
     try:
         indexer = ScholarIndexer(db_path=db_path)
         b_file = Path(bib_file) if bib_file else None
-        result = indexer.index_directory(docs_dir=d_dir, bib_file=b_file, workspace_id=workspace_id)
+        result = indexer.index_directory(
+            docs_dir=d_dir, bib_file=b_file, workspace_id=workspace_id
+        )
         return f"Successfully indexed {result['indexed_files']} files ({result['total_chunks']} structural chunks) into {db_path}."
     except Exception as e:
         return f"Error during indexing: {e}"
@@ -456,17 +684,17 @@ def nexus_rag_query(
             alpha=alpha,
             beta=beta,
         )
-        
+
         if not results:
             return "No results found."
-        
+
         output = []
         for i, res in enumerate(results, 1):
             meta = res.metadata
-            section_name = meta.get('section', 'Unknown')
-            sec_cat = meta.get('section_category', 'general')
+            section_name = meta.get("section", "Unknown")
+            sec_cat = meta.get("section_category", "general")
             token = res.citation_token
-            snippet = res.text[:300].replace('\n', ' ') + "..."
+            snippet = res.text[:300].replace("\n", " ") + "..."
             output.append(
                 f"Result {i} (Hybrid Score: {res.hybrid_score:.4f}, CosSim: {res.cosine_sim:.4f})\n"
                 f"Token: {token} | Section: {section_name} [{sec_cat}]\n"
@@ -484,7 +712,7 @@ def nexus_rag_synthesize(
     db_path: str = "./chroma_db",
     section_category: str = None,
     paradigm: str = None,
-    n_chunks: int = 5
+    n_chunks: int = 5,
 ) -> str:
     """
     Generate grounded synthesis with atomic citation tokens and automated claim entailment verification.
@@ -498,7 +726,7 @@ def nexus_rag_synthesize(
             rq_id=rq_id,
             n_chunks=n_chunks,
             section_category=section_category,
-            paradigm=paradigm
+            paradigm=paradigm,
         )
         return (
             f"Grounded Synthesis for '{query}' ({result.verified_claims_count}/{len(result.claims)} verified claims, {result.entailment_rate * 100:.1f}% entailment):\n\n"
@@ -509,7 +737,11 @@ def nexus_rag_synthesize(
 
 
 @mcp.tool()
-def nexus_matrix_extract(workspace_dir: str = ".", protocol_path: str = None, output_dir: str = "./literature") -> str:
+def nexus_matrix_extract(
+    workspace_dir: str = ".",
+    protocol_path: str = None,
+    output_dir: str = "./literature",
+) -> str:
     """
     Extract dynamic Protocol Matrix Dimensions across all indexed studies in the workspace.
     """
@@ -522,7 +754,9 @@ def nexus_matrix_extract(workspace_dir: str = ".", protocol_path: str = None, ou
     if not p_path.exists():
         return f"Error: Protocol not found at {p_path}"
     try:
-        protocol = ResearchProtocol.model_validate(json.loads(p_path.read_text(encoding="utf-8")))
+        protocol = ResearchProtocol.model_validate(
+            json.loads(p_path.read_text(encoding="utf-8"))
+        )
         retriever = ScholarRetriever(db_path=str(w_dir / "chroma_db"))
         extractor = MatrixExtractor(protocol=protocol, retriever=retriever)
         rows, csv_path, json_path = extractor.extract_all(output_dir=out_dir)
@@ -532,7 +766,11 @@ def nexus_matrix_extract(workspace_dir: str = ".", protocol_path: str = None, ou
 
 
 @mcp.tool()
-def nexus_graph_build(input_path: str, output_html: str = "./graph.html", json_output: str = "./graph.json") -> str:
+def nexus_graph_build(
+    input_path: str,
+    output_html: str = "./graph.html",
+    json_output: str = "./graph.json",
+) -> str:
     """
     Build a citation graph network from screening included.json and compute PageRank centrality.
     """
@@ -545,7 +783,9 @@ def nexus_graph_build(input_path: str, output_html: str = "./graph.html", json_o
     try:
         from scholar_search.http_client import AcademicHttpClient
 
-        builder = CitationGraphBuilder(AcademicHttpClient(name="openalex-graph", rate_limit=10))
+        builder = CitationGraphBuilder(
+            AcademicHttpClient(name="openalex-graph", rate_limit=10)
+        )
 
         dois = []
         if inp.suffix == ".json":
@@ -601,11 +841,12 @@ def nexus_bib_clean(input_bib_path: str, output_bib_path: str = None) -> str:
 # Phase 4 / Rigor Enhancement: Multi-Screener Reconciliation & Verbatim Attributions
 # ==============================================================================
 
+
 @mcp.tool()
 def nexus_screen_reconcile(screeners_json: str, adjudication_json: str = None) -> str:
     """
     Reconcile multi-screener screening decisions using strict majority voting and compute Fleiss' Kappa.
-    
+
     Args:
         screeners_json: Path to JSON mapping screener_id -> {workspace_id: 'INCLUDE'|'EXCLUDE'} or path to a directory containing batch_*_decisions*.json.
         adjudication_json: Optional path to JSON file with adjudicated tie-breaking decisions.
@@ -619,7 +860,9 @@ def nexus_screen_reconcile(screeners_json: str, adjudication_json: str = None) -
             for f in p.glob("batch_*_decisions*.json"):
                 # derive screener key
                 parts = f.stem.split("_decisions")
-                screener_key = parts[1].strip("_") if len(parts) > 1 and parts[1] else "screener1"
+                screener_key = (
+                    parts[1].strip("_") if len(parts) > 1 and parts[1] else "screener1"
+                )
                 if screener_key not in screeners_map:
                     screeners_map[screener_key] = {}
                 data = json.loads(f.read_text(encoding="utf-8"))
@@ -653,12 +896,14 @@ def nexus_screen_reconcile(screeners_json: str, adjudication_json: str = None) -
 
 
 @mcp.tool()
-def nexus_verify_claims(claims_json_path: str, extracted_dir_path: str, threshold: float = 0.90) -> str:
+def nexus_verify_claims(
+    claims_json_path: str, extracted_dir_path: str, threshold: float = 0.90
+) -> str:
     """
     Verify claim quotes against extracted Markdown files using token n-gram and char-window matching.
     Accepts scholar-rag SynthesisClaim JSON ({claims: [...]} or bare list). Returns
     aggregate metrics, per-claim verdicts, and a failures-by-reason breakdown.
-    
+
     Args:
         claims_json_path: Path to synthesis claims JSON (e.g. synthesis/claims.json).
         extracted_dir_path: Directory containing extracted source markdown documents.
@@ -670,15 +915,30 @@ def nexus_verify_claims(claims_json_path: str, extracted_dir_path: str, threshol
         cp = Path(claims_json_path)
         ed = Path(extracted_dir_path)
         if not cp.is_file():
-            return json.dumps({"status": "ERROR", "error": f"Claims file not found: {claims_json_path}"})
+            return json.dumps(
+                {
+                    "status": "ERROR",
+                    "error": f"Claims file not found: {claims_json_path}",
+                }
+            )
         if not ed.is_dir():
-            return json.dumps({"status": "ERROR", "error": f"Extracted directory not found: {extracted_dir_path}"})
+            return json.dumps(
+                {
+                    "status": "ERROR",
+                    "error": f"Extracted directory not found: {extracted_dir_path}",
+                }
+            )
 
         claims = json.loads(cp.read_text(encoding="utf-8"))
         if isinstance(claims, dict):
             claims = claims.get("claims", [])
         if not isinstance(claims, list):
-            return json.dumps({"status": "ERROR", "error": "Claims file must be a JSON array or {claims: [...]}"})
+            return json.dumps(
+                {
+                    "status": "ERROR",
+                    "error": "Claims file must be a JSON array or {claims: [...]}",
+                }
+            )
 
         # scholar-rag SynthesisClaim emits claim_text + study_id, not
         # evidence_quote/claim_id. Normalize so VerbatimClaimVerifier can digest it.
@@ -688,9 +948,13 @@ def nexus_verify_claims(claims_json_path: str, extracted_dir_path: str, threshol
                 continue
             normalized.append(
                 {
-                    "claim_id": claim.get("claim_id") or claim.get("workspace_id") or f"CLAIM-{i + 1:04d}",
+                    "claim_id": claim.get("claim_id")
+                    or claim.get("workspace_id")
+                    or f"CLAIM-{i + 1:04d}",
                     "study_id": claim.get("study_id") or "",
-                    "evidence_quote": claim.get("evidence_quote") or claim.get("claim_text") or "",
+                    "evidence_quote": claim.get("evidence_quote")
+                    or claim.get("claim_text")
+                    or "",
                     "_rag_status": claim.get("entailment_status"),
                 }
             )
@@ -701,6 +965,7 @@ def nexus_verify_claims(claims_json_path: str, extracted_dir_path: str, threshol
             source_texts[f.stem] = content
             # Try to index by SCI-xxxx if found
             import re
+
             m = re.search(r"workspace_id:\s*['\"]?(SCI-\d+)['\"]?", content)
             if m:
                 source_texts[m.group(1)] = content
@@ -755,13 +1020,24 @@ def nexus_verify_phase4(
     """
     ws = Path(_resolve_path(workspace_dir) or workspace_dir).resolve()
     if not ws.is_dir():
-        return json.dumps({"status": "ERROR", "error": f"Workspace not found: {workspace_dir}"})
-    streams = {"retraction", "open-science", "coi", "risk-of-bias", "trust-context", "all"}
+        return json.dumps(
+            {"status": "ERROR", "error": f"Workspace not found: {workspace_dir}"}
+        )
+    streams = {
+        "retraction",
+        "open-science",
+        "coi",
+        "risk-of-bias",
+        "trust-context",
+        "all",
+    }
     if stream not in streams:
-        return json.dumps({
-            "status": "ERROR",
-            "error": f"Unknown stream '{stream}'; expected one of {sorted(streams)}",
-        })
+        return json.dumps(
+            {
+                "status": "ERROR",
+                "error": f"Unknown stream '{stream}'; expected one of {sorted(streams)}",
+            }
+        )
     try:
         written: dict[str, str] = {}
 
@@ -769,14 +1045,23 @@ def nexus_verify_phase4(
             recs = verify_cli._merged_records(ws)
             inc = verify_cli._load(ws / "literature" / "included.json", "included")
             out = retraction.RetractionChecker(sleep_s=sleep_s).check(recs, inc)
-            verify_cli._write(ws, "retraction_status_check", out, retraction.render_retraction_report(out))
+            verify_cli._write(
+                ws,
+                "retraction_status_check",
+                out,
+                retraction.render_retraction_report(out),
+            )
             written["retraction"] = str(ws / "phase4" / "retraction_status_check.json")
 
         if stream in ("open-science", "all"):
             recs = verify_cli._merged_records(ws)
             out = open_science.run(recs, ws / "extracted")
-            verify_cli._write(ws, "open_science_regex_baseline", out, open_science.render_report(out))
-            written["open_science"] = str(ws / "phase4" / "open_science_regex_baseline.json")
+            verify_cli._write(
+                ws, "open_science_regex_baseline", out, open_science.render_report(out)
+            )
+            written["open_science"] = str(
+                ws / "phase4" / "open_science_regex_baseline.json"
+            )
 
         if stream in ("coi", "all"):
             manifest = verify_cli._manifest(ws)
@@ -802,24 +1087,352 @@ def nexus_verify_phase4(
                 for key, default_fname in trust_context.PHASE4_INPUTS.items():
                     p = ws / "phase4" / default_fname
                     if p.exists():
-                        phase4[key] = trust_context._rows(verify_cli._load(p, f"phase4/{default_fname}"))
+                        phase4[key] = trust_context._rows(
+                            verify_cli._load(p, f"phase4/{default_fname}")
+                        )
                 cdir = ws / "synthesis"
-                claims_by_rq = trust_context.load_rq_claims(cdir) if cdir.exists() else {}
-                annotated = trust_context.annotate(cons, phase4, rq_id=rq_id, claims_by_rq=claims_by_rq)
+                claims_by_rq = (
+                    trust_context.load_rq_claims(cdir) if cdir.exists() else {}
+                )
+                annotated = trust_context.annotate(
+                    cons, phase4, rq_id=rq_id, claims_by_rq=claims_by_rq
+                )
                 md = trust_context.render_report(annotated)
                 phase4_dir = ws / "phase4"
                 phase4_dir.mkdir(parents=True, exist_ok=True)
-                stem = f"trust_consensus_{verify_cli._slug(rq_id)}" if rq_id else "trust_consensus"
+                stem = (
+                    f"trust_consensus_{verify_cli._slug(rq_id)}"
+                    if rq_id
+                    else "trust_consensus"
+                )
                 (phase4_dir / f"{stem}.json").write_text(
-                    json.dumps(annotated, indent=2, ensure_ascii=False), encoding="utf-8"
+                    json.dumps(annotated, indent=2, ensure_ascii=False),
+                    encoding="utf-8",
                 )
                 (phase4_dir / f"{stem}.md").write_text(md, encoding="utf-8")
                 written["trust_context"] = str(phase4_dir / f"{stem}.json")
 
-        return json.dumps({"status": "SUCCESS", "stream": stream, "written": written}, indent=2)
+        return json.dumps(
+            {"status": "SUCCESS", "stream": stream, "written": written}, indent=2
+        )
     except Exception as e:
         return json.dumps({"status": "ERROR", "error": str(e)})
 
+
+# ==============================================================================
+# Phase F: Specialized Agents — Methodology Critique (F1) & Graph Narrative (F2)
+# ==============================================================================
+
+
+def _load_records(workspace_dir: Path) -> list[dict]:
+    """Load merged extraction records from ``literature/extraction/merged/records.json``."""
+    recs_path = workspace_dir / "literature" / "extraction" / "merged" / "records.json"
+    if not recs_path.is_file():
+        raise FileNotFoundError(f"records.json not found at {recs_path}")
+    return json.loads(recs_path.read_text(encoding="utf-8"))
+
+
+def _load_manifest(workspace_dir: Path) -> list[dict]:
+    """Load the Phase-4 manifest from ``phase4/_manifest.json``."""
+    manifest_path = workspace_dir / "phase4" / "_manifest.json"
+    if not manifest_path.is_file():
+        raise FileNotFoundError(f"_manifest.json not found at {manifest_path}")
+    return json.loads(manifest_path.read_text(encoding="utf-8"))
+
+
+def _load_graph_json(graph_path: Path) -> dict:
+    """Read and return parsed graph JSON (node-link format with pagerank/groups)."""
+    if not graph_path.is_file():
+        raise FileNotFoundError(f"Graph JSON not found at {graph_path}")
+    return json.loads(graph_path.read_text(encoding="utf-8"))
+
+
+def _identify_hubs(graph_data: dict, top_n: int = 10) -> list[dict]:
+    """Sort nodes by PageRank score and return the top-N with title, doi, score."""
+    nodes = graph_data.get("nodes", [])
+    pagerank = graph_data.get("pagerank", {})
+    scored: list[dict] = []
+    for node in nodes:
+        nid = node.get("id", "")
+        score = pagerank.get(nid, 0.0)
+        scored.append(
+            {
+                "title": node.get("title", nid),
+                "doi": node.get("doi", ""),
+                "id": nid,
+                "pagerank": score,
+            }
+        )
+    scored.sort(key=lambda x: x["pagerank"], reverse=True)
+    return scored[:top_n]
+
+
+def _summarize_communities(graph_data: dict) -> list[dict]:
+    """Group nodes by ``group`` field (Louvain community ID) and summarize."""
+    nodes = graph_data.get("nodes", [])
+    pagerank = graph_data.get("pagerank", {})
+    groups: dict[str, list[dict]] = {}
+    for node in nodes:
+        gid = str(node.get("group", "0"))
+        if gid not in groups:
+            groups[gid] = []
+        score = pagerank.get(node.get("id", ""), 0.0)
+        groups[gid].append(
+            {
+                "id": node.get("id", ""),
+                "title": node.get("title", node.get("id", "")),
+                "doi": node.get("doi", ""),
+                "pagerank": score,
+            }
+        )
+    summaries: list[dict] = []
+    for gid in sorted(groups, key=lambda g: len(groups[g]), reverse=True):
+        members = groups[gid]
+        members.sort(key=lambda x: x["pagerank"], reverse=True)
+        top3 = members[:3]
+        label_parts = [m["title"][:60] for m in top3 if m["title"]]
+        summaries.append(
+            {
+                "group_id": gid,
+                "node_count": len(members),
+                "top_nodes": [
+                    {"title": m["title"], "doi": m["doi"], "pagerank": m["pagerank"]}
+                    for m in top3
+                ],
+                "label": " / ".join(label_parts) if label_parts else f"Community {gid}",
+            }
+        )
+    return summaries
+
+
+@mcp.tool()
+def nexus_critique_methodology(
+    workspace_dir: str,
+    protocol_path: str | None = None,
+    rq_id: str | None = None,
+) -> str:
+    """Evaluate methodological rigor of extracted studies using risk-of-bias scoring.
+
+    Wraps ``scholar-verify-kit`` risk-of-bias (QUADAS-2/PROBAST adaptation) and
+    produces a ``methodological_critique.md`` with domain-level summary and
+    per-study table.
+
+    Parameters
+    ----------
+    workspace_dir:
+        Path to the research workspace.
+    protocol_path:
+        Optional path to ``protocol.json`` for research-question context.
+    rq_id:
+        Optional research question ID to scope the critique.
+    """
+    try:
+        ws = Path(_resolve_path(workspace_dir) or workspace_dir).resolve()
+        if not ws.is_dir():
+            return json.dumps(
+                {"status": "ERROR", "error": f"Workspace not found: {workspace_dir}"}
+            )
+
+        # Load data
+        records = _load_records(ws)
+        manifest = _load_manifest(ws)
+
+        # Run risk-of-bias scoring
+        rob_result = risk_of_bias.run(records, manifest)
+
+        # Compute aggregate stats
+        summary = rob_result.get("summary", {})
+        overall_risk = summary.get("overall_risk", {})
+        by_domain = summary.get("by_domain", {})
+        studies_high = summary.get("studies_high_risk", [])
+        studies_unclear = summary.get("studies_unclear", [])
+        total_assessed = summary.get("studies_assessed", 0)
+
+        # Determine overall risk label
+        if overall_risk.get("H", 0) > 0:
+            overall_label = "HIGH"
+        elif overall_risk.get("?", 0) > overall_risk.get("L", 0):
+            overall_label = "UNCLEAR"
+        else:
+            overall_label = "LOW"
+
+        # Build domain ratings
+        domain_names = risk_of_bias.DOMAIN_NAMES
+        domain_ratings: dict[str, dict[str, int]] = {}
+        for dk, counts in by_domain.items():
+            domain_ratings[dk] = dict(counts)
+
+        # Render Markdown critique
+        md_lines = [
+            "# Methodological Critique",
+            "",
+            "## Overview",
+            "",
+            f"- **Studies assessed**: {total_assessed}",
+            f"- **Overall risk**: {overall_label}",
+            f"- **High-risk studies**: {', '.join(studies_high) if studies_high else 'None'}",
+            f"- **Unclear-risk studies**: {', '.join(studies_unclear) if studies_unclear else 'None'}",
+            "",
+            "## Domain-Level Summary",
+            "",
+            "| Domain | L (Low) | ? (Unclear) | H (High) |",
+            "| :--- | :---: | :---: | :---: |",
+        ]
+        for dk in sorted(domain_names):
+            label = domain_names.get(dk, dk)
+            counts = by_domain.get(dk, {})
+            l_count = counts.get("L", 0)
+            u_count = counts.get("?", 0)
+            h_count = counts.get("H", 0)
+            na_count = counts.get("n/a", 0)
+            if na_count == total_assessed:
+                md_lines.append(f"| {dk}: {label} | — | — | — (n/a) |")
+            else:
+                md_lines.append(
+                    f"| {dk}: {label} | {l_count} | {u_count} | {h_count} |"
+                )
+
+        md_lines += ["", "## Per-Study Breakdown", ""]
+        md_lines += [
+            "| Workspace ID | Title | Year | Overall Risk |",
+            "| :--- | :--- | :---: | :---: |",
+        ]
+        for row in rob_result.get("results", []):
+            title = (row.get("title") or "")[:80]
+            md_lines.append(
+                f"| {row['workspace_id']} | {title} | {row.get('year', '')} | {row['overall_risk']} |"
+            )
+
+        md_lines += [
+            "",
+            "---",
+            f"*Generated by `nexus_critique_methodology` (scholar-verify-kit risk-of-bias)*",
+        ]
+
+        summary_md = "\n".join(md_lines)
+
+        # Write output
+        out_dir = ws / "phase4"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        (out_dir / "methodological_critique.md").write_text(
+            summary_md, encoding="utf-8"
+        )
+
+        return json.dumps(
+            {
+                "status": "SUCCESS",
+                "overall_risk": overall_label,
+                "domain_ratings": domain_ratings,
+                "per_study_count": total_assessed,
+                "output_path": str(out_dir / "methodological_critique.md"),
+            },
+            indent=2,
+        )
+    except Exception as e:
+        return json.dumps({"status": "ERROR", "error": str(e)})
+
+
+@mcp.tool()
+def nexus_graph_narrative(
+    workspace_dir: str,
+    graph_json_path: str,
+    top_hubs: int = 10,
+) -> str:
+    """Generate a narrative summary from citation graph structure and community detection.
+
+    Reads graph stats (PageRank hubs, Louvain communities) and produces a
+    ``visual_synthesis.md`` explaining hub papers and thematic clusters.
+
+    Parameters
+    ----------
+    workspace_dir:
+        Path to the research workspace.
+    graph_json_path:
+        Path to the graph JSON file (node-link format with pagerank/groups).
+    top_hubs:
+        Number of top hub papers to include (default 10).
+    """
+    try:
+        ws = Path(_resolve_path(workspace_dir) or workspace_dir).resolve()
+        gp = Path(_resolve_path(graph_json_path) or graph_json_path)
+        if not ws.is_dir():
+            return json.dumps(
+                {"status": "ERROR", "error": f"Workspace not found: {workspace_dir}"}
+            )
+
+        graph_data = _load_graph_json(gp)
+        hubs = _identify_hubs(graph_data, top_n=top_hubs)
+        communities = _summarize_communities(graph_data)
+
+        # Render narrative
+        nodes = graph_data.get("nodes", [])
+        edges = graph_data.get("links", graph_data.get("edges", []))
+        n_nodes = len(nodes)
+        n_edges = len(edges)
+
+        md_lines = [
+            "# Visual Synthesis: Citation Network Analysis",
+            "",
+            "## Network Overview",
+            "",
+            f"- **Total papers**: {n_nodes}",
+            f"- **Citation links**: {n_edges}",
+            f"- **Communities detected**: {len(communities)}",
+            f"- **Top hub papers analyzed**: {len(hubs)}",
+            "",
+            "## Hub Papers",
+            "",
+            "Hub papers are the most central nodes in the citation network, as measured by PageRank centrality. They represent the most influential or foundational works in this corpus.",
+            "",
+            "| Rank | Title | DOI | PageRank |",
+            "| :---: | :--- | :--- | :---: |",
+        ]
+        for i, hub in enumerate(hubs, 1):
+            title = (hub["title"] or "")[:80]
+            doi = hub.get("doi") or "—"
+            md_lines.append(f"| {i} | {title} | {doi} | {hub['pagerank']:.4f} |")
+
+        md_lines += ["", "## Thematic Communities", ""]
+        for comm in communities:
+            gid = comm["group_id"]
+            count = comm["node_count"]
+            label = comm["label"]
+            md_lines += [
+                f"### Community {gid} ({count} papers)",
+                "",
+                f"**Key themes**: {label}",
+                "",
+                "Top papers:",
+            ]
+            for tn in comm["top_nodes"]:
+                t = (tn["title"] or "")[:80]
+                d = tn.get("doi") or "—"
+                md_lines.append(f"- {t} (DOI: {d})")
+            md_lines.append("")
+
+        md_lines += [
+            "---",
+            f"*Generated by `nexus_graph_narrative` (scholar-graph-kit)*",
+        ]
+
+        narrative_md = "\n".join(md_lines)
+
+        # Write output
+        out_dir = ws / "synthesis"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        (out_dir / "visual_synthesis.md").write_text(narrative_md, encoding="utf-8")
+
+        return json.dumps(
+            {
+                "status": "SUCCESS",
+                "n_hubs": len(hubs),
+                "n_communities": len(communities),
+                "output_path": str(out_dir / "visual_synthesis.md"),
+            },
+            indent=2,
+        )
+    except Exception as e:
+        return json.dumps({"status": "ERROR", "error": str(e)})
 
 
 # ==============================================================================
@@ -832,6 +1445,7 @@ def nexus_verify_phase4(
 # beside it.  Every result carries its lineage cache_key (T5.5).  All outputs
 # are machine-readable JSON (paths/keys, never prose).
 # ==============================================================================
+
 
 def _now_iso() -> str:
     return datetime.now(UTC).isoformat()
@@ -895,9 +1509,7 @@ def save_session(session: dict) -> Path:
     root.mkdir(parents=True, exist_ok=True)
     path = root / "session.json"
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(
-        json.dumps(session, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
+    tmp.write_text(json.dumps(session, indent=2, ensure_ascii=False), encoding="utf-8")
     os.replace(tmp, path)
     return path
 
@@ -915,9 +1527,7 @@ def _content_sha(payload: dict) -> str:
 
 def _atomic_write_json(path: Path, payload: dict) -> None:
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(
-        json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
+    tmp.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
     os.replace(tmp, path)
 
 
@@ -987,9 +1597,7 @@ def recon_probe(
             indent=2,
         )
     except (RuntimeError, ValueError, OSError) as exc:
-        return json.dumps(
-            {"status": "error", "message": str(exc), "cache_key": None}
-        )
+        return json.dumps({"status": "error", "message": str(exc), "cache_key": None})
 
 
 def _validated_lexicon_fields(value: Any, name: str) -> dict[str, str]:
@@ -1022,9 +1630,7 @@ def _validated_lexicon_fields(value: Any, name: str) -> dict[str, str]:
 
 
 @mcp.tool()
-def recon_distill(
-    session_id: str, lexicon_json: str | dict | None = None
-) -> str:
+def recon_distill(session_id: str, lexicon_json: str | dict | None = None) -> str:
     """Distill the latest session pool into an anchored micro-taxonomy.
 
     Loads the session's most recent pool from the persisted ``session.json``
@@ -1054,7 +1660,11 @@ def recon_distill(
         lexicon = None
         artifact_prefix = "distilled"
         if lexicon_json is not None:
-            parsed = lexicon_json if isinstance(lexicon_json, dict) else json.loads(lexicon_json)
+            parsed = (
+                lexicon_json
+                if isinstance(lexicon_json, dict)
+                else json.loads(lexicon_json)
+            )
             if not isinstance(parsed, dict):
                 raise ValueError("lexicon_json must be a JSON object")
             extra = DomainLexicon(
@@ -1063,18 +1673,14 @@ def recon_distill(
                 schools=_validated_lexicon_fields(parsed.get("schools"), "schools"),
             )
             lexicon = merge_lexicons(DEFAULT_LEXICON, extra)
-            artifact_prefix = (
-                "distilled_lx" + _content_sha({"lexicon": parsed})[:12]
-            )
+            artifact_prefix = "distilled_lx" + _content_sha({"lexicon": parsed})[:12]
         session = load_session(str(session_id))
         if not session["pools"]:
             raise RuntimeError(
                 f"session {session_id} has no pool; run recon_probe first"
             )
         pool = json.loads(Path(session["pools"][-1]).read_text(encoding="utf-8"))
-        distilled = distill_pool(
-            pool, lexicon=lexicon, query_text=session.get("topic")
-        )
+        distilled = distill_pool(pool, lexicon=lexicon, query_text=session.get("topic"))
         root = _session_root(str(session_id))
         terms_file = _persist_artifact(root, artifact_prefix, distilled).resolve()
         save_session(session)
@@ -1094,7 +1700,9 @@ def recon_distill(
                 ],
                 "datasets": [
                     {"label": label, "count": count}
-                    for label, count in sorted((distilled.get("datasets") or {}).items())
+                    for label, count in sorted(
+                        (distilled.get("datasets") or {}).items()
+                    )
                 ],
                 "schools": distilled.get("schools") or [],
                 "topics": distilled.get("topics") or [],
@@ -1103,9 +1711,7 @@ def recon_distill(
             indent=2,
         )
     except (RuntimeError, ValueError, OSError) as exc:
-        return json.dumps(
-            {"status": "error", "message": str(exc), "cache_key": None}
-        )
+        return json.dumps({"status": "error", "message": str(exc), "cache_key": None})
 
 
 @mcp.tool()
@@ -1168,7 +1774,9 @@ def recon_delta(session_id: str, followups: int = 3) -> str:
                         },
                         "school_n": int(item.get("school_n") or 0),
                         "corpus_total": int(item.get("corpus_total", -1)),
-                        "saturation_label": str(item.get("saturation_label") or "unknown"),
+                        "saturation_label": str(
+                            item.get("saturation_label") or "unknown"
+                        ),
                     }
                     for item in result.get("followups") or []
                 ],
@@ -1182,14 +1790,13 @@ def recon_delta(session_id: str, followups: int = 3) -> str:
             indent=2,
         )
     except (RuntimeError, ValueError, OSError) as exc:
-        return json.dumps(
-            {"status": "error", "message": str(exc), "cache_key": None}
-        )
+        return json.dumps({"status": "error", "message": str(exc), "cache_key": None})
 
 
 # ==============================================================================
 # CLI Entrypoint
 # ==============================================================================
+
 
 def main(argv: list[str] | None = None) -> None:
     """Start the FastMCP server or display help."""
@@ -1206,6 +1813,7 @@ def main(argv: list[str] | None = None) -> None:
             "  - nexus_discover: Search OpenAlex for scholarly papers\n"
             "  - nexus_dedup: Deduplicate candidate documents by PID clustering\n"
             "  - nexus_screen: Systematic PRISMA screening against protocol criteria\n"
+            "  - nexus_screen_llm: LLM-enhanced screening with heuristic fallback\n"
             "  - nexus_extract_pdf: Extract structured Markdown from PDFs\n"
             "  - nexus_rag_index: Index Markdown into ChromaDB with structural AST chunking\n"
             "  - nexus_rag_query: Hybrid search with sectional slicing and graph PageRank boosting\n"
@@ -1216,6 +1824,9 @@ def main(argv: list[str] | None = None) -> None:
             "  - nexus_screen_reconcile: Reconcile multi-screener decisions with Fleiss' kappa\n"
             "  - nexus_verify_claims: Verify synthesis claim quotes against extracted fulltext\n"
             "  - nexus_verify_phase4: Run scholar-verify Phase-4 streams (retraction/open-science/coi/risk-of-bias/trust-context)\n"
+            "  - nexus_critique_methodology: Evaluate methodological rigor via risk-of-bias scoring\n"
+            "  - nexus_graph_narrative: Generate narrative summary from citation graph structure\n"
+            "  - nexus_pipeline_run: Run the full 10-stage ResearchOrchestrator pipeline\n"
             "  - recon_probe: Probe a topic into a FAIR recon session (cross-turn state)\n"
             "  - recon_distill: Distill the latest session pool into anchored terms\n"
             "  - recon_delta: Bounded adaptive gap follow-up probes with cache reuse"
