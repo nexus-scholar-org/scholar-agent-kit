@@ -91,7 +91,7 @@ E1_REFERENCE = "docs/architecture/wp01_packet_e1_acquired_document_handoff.md#4.
 #: rejection message is actionable rather than a bare refusal.
 ACQUIRE_CLI_ALTERNATIVE = (
     "`scholar-pdf acquire` CLI "
-    "(e.g. `uv run scholar-pdf acquire --request <request.json>`)"
+    "(e.g. `uv run scholar-pdf acquire <config.json>`)"
 )
 ACQUIRE_API_ALTERNATIVE = (
     "Python `scholar_pdf.acquisition` API (acquisition request/outcome models)"
