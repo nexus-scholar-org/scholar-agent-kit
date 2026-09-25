@@ -6,6 +6,22 @@ suite also exposes three ``recon_*`` tools -- ``recon_probe`` /
 layers (``scholar_harness.recon``) with FAIR session memory.  See the "Import
 strategy (Option B)" note next to ``_harness_src`` for how this kit resolves
 the harness package at runtime without vendoring any recon code.
+
+Declared-unsupported capabilities (WP01-E1)
+------------------------------------------
+``nexus_pdf_acquire`` is a **declared capability boundary**, not an
+acquisition implementation.  The canonical ``scholar-pdf-kit`` owns the E1
+acquired-document domain service and serves it through its Python API and
+``scholar-pdf`` CLI; this kit's MCP surface does **not** serve it.  Rather than
+silently omitting the operation, the kit declares ``pdf_acquisition`` with
+``mcp_supported=False`` in :mod:`scholar_agent.capabilities` and answers every
+acquisition-shaped request with the standard operation envelope
+(``operation="acquire_pdf"``, ``status="FAILED"``, no artifacts, one
+non-retryable ``UNSUPPORTED_CAPABILITY`` error naming the API/CLI
+alternatives).  The rejection happens before any provider transport,
+temporary/final file creation, manifest creation, or audit-success append, and
+the envelope is built by pure functions only.  This is an explicit unsupported
+difference -- it is not a semantic-parity claim.
 """
 
 from __future__ import annotations
@@ -74,6 +90,15 @@ from scholar_graph.visualizer import GraphVisualizer
 from scholar_bib.deduplicator import BibDeduplicator
 from scholar_bib.linter import BibLinter
 from scholar_bib.parser import BibParser
+
+# WP01-E1 declared MCP capability boundary (Packet E1 section 4.7, E1-016).
+# This kit owns the *declaration and rejection* only: the canonical
+# scholar-pdf-kit owns PDF acquisition (API/CLI). No download, ingest,
+# validation, storage, or manifest logic may appear in this adapter.
+from scholar_agent.capabilities import (
+    PDF_ACQUISITION,
+    unsupported_capability_envelope_json,
+)
 
 
 # Recon (M0.5) imports -- adapter seam -- do not move above the seam.
@@ -614,6 +639,46 @@ def nexus_extract_pdf(
         return f"Extracted {pdf.name} to {res_file}"
     except Exception as e:
         return f"Error during PDF extraction: {e}"
+
+
+@mcp.tool()
+def nexus_pdf_acquire(
+    workspace_id: str = "",
+    workspace_root: str = "",
+    run_id: str = "",
+    study_id: str = "",
+    protocol_fingerprint: str = "",
+    corpus_fingerprint: str = "",
+    inputs_json: str = "",
+    doi: str = "",
+    source_mode: str = "",
+    source_path: str = "",
+    access_assertion_json: str = "",
+    validation_profile: str = "",
+    validation_profile_version: str = "",
+) -> str:
+    """DECLARED UNSUPPORTED: PDF acquisition is not available through MCP (E1).
+
+    This tool exists so the boundary is *observable* rather than silently
+    omitted. PDF acquisition (``pdf_acquisition``) is declared in
+    ``scholar_agent.capabilities`` with ``mcp_supported=False``; the canonical
+    scholar-pdf-kit owns the domain service and exposes it through its Python
+    API (``scholar_pdf.acquisition``) and the ``scholar-pdf acquire`` CLI.
+    Those API/CLI surfaces are the supported E1 acquisition surfaces.
+
+    Arguments mirror the shape of an E1 acquisition request (Packet E1 section
+    3) and are accepted for discoverability only: the rejection is
+    unconditional, so no argument value is validated, interpreted, or echoed.
+    Nothing is downloaded, ingested, validated, staged, or written.
+
+    Returns a JSON operation envelope: ``operation="acquire_pdf"``,
+    ``status="FAILED"``, ``artifacts=[]``, and exactly one non-retryable error
+    with ``code="UNSUPPORTED_CAPABILITY"`` whose message names the API/CLI
+    alternatives. The rejection occurs before any provider transport,
+    temporary/final file creation, manifest creation, or audit append; the
+    envelope is produced by pure functions (no filesystem or network I/O).
+    """
+    return unsupported_capability_envelope_json(PDF_ACQUISITION)
 
 
 # ==============================================================================
@@ -1815,6 +1880,9 @@ def main(argv: list[str] | None = None) -> None:
             "  - nexus_screen: Systematic PRISMA screening against protocol criteria\n"
             "  - nexus_screen_llm: LLM-enhanced screening with heuristic fallback\n"
             "  - nexus_extract_pdf: Extract structured Markdown from PDFs\n"
+            "  - nexus_pdf_acquire: DECLARED UNSUPPORTED (E1) - rejects PDF acquisition with "
+            "operation=acquire_pdf / status=FAILED / UNSUPPORTED_CAPABILITY before any I/O; "
+            "use the scholar-pdf CLI or scholar_pdf API instead\n"
             "  - nexus_rag_index: Index Markdown into ChromaDB with structural AST chunking\n"
             "  - nexus_rag_query: Hybrid search with sectional slicing and graph PageRank boosting\n"
             "  - nexus_rag_synthesize: Grounded synthesis with claim entailment verification\n"
