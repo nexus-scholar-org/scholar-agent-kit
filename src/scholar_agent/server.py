@@ -22,6 +22,19 @@ alternatives).  The rejection happens before any provider transport,
 temporary/final file creation, manifest creation, or audit-success append, and
 the envelope is built by pure functions only.  This is an explicit unsupported
 difference -- it is not a semantic-parity claim.
+
+``nexus_pdf_extraction`` is the same kind of boundary for the E2 extracted-text
+capability (``pdf_extraction``, Packet E2 section 9 / E2-013): the canonical
+scholar-pdf-kit owns extraction through its Python API and ``scholar-pdf
+extract`` CLI, and every extraction-shaped request is answered with
+``operation="extract_pdf"`` / ``status="FAILED"`` and one non-retryable
+``UNSUPPORTED_CAPABILITY`` error, before any engine import, file, sidecar, or
+audit I/O.  The pre-existing ``nexus_extract_pdf`` stays available for
+exploration, but it verifies nothing and identifies nothing: its metadata is
+derived heuristically from the path, so it is documented as non-authoritative
+and must not be read as a Contract artifact, a sidecar, or an identity.
+E1's ``pdf_acquisition`` declaration is unchanged by E2 -- the two boundaries
+are separate facts about two different capabilities.
 """
 
 from __future__ import annotations
@@ -95,8 +108,13 @@ from scholar_bib.parser import BibParser
 # This kit owns the *declaration and rejection* only: the canonical
 # scholar-pdf-kit owns PDF acquisition (API/CLI). No download, ingest,
 # validation, storage, or manifest logic may appear in this adapter.
+# WP01-E2 adds the parallel pdf_extraction declaration (Packet E2 section 9,
+# E2-013) with the same discipline: the canonical scholar-pdf-kit owns
+# extraction (API/CLI), so no engine, sidecar, or identity logic may appear
+# in the MCP adapter either.
 from scholar_agent.capabilities import (
     PDF_ACQUISITION,
+    PDF_EXTRACTION,
     unsupported_capability_envelope_json,
 )
 
@@ -620,7 +638,34 @@ def nexus_extract_pdf(
     pdf_path: str, output_dir: str = "./extracted", engine: str = "pymupdf"
 ) -> str:
     """
-    Extract a PDF into Markdown with YAML frontmatter using the requested engine.
+    NON-AUTHORITATIVE convenience: extract a PDF into Markdown with YAML
+    frontmatter using the requested engine.
+
+    This tool is **not** the E2 extraction service and must not be read as
+    one. It verifies nothing (no checksum, no E1 acquisition manifest, no
+    parent lineage) and identifies nothing (no ``document_id``, no
+    identity-addressed output, no sidecar). The ``title``, ``doi``, and
+    ``workspace_id`` it passes to the engine are derived *heuristically from
+    the path* (see :func:`_pdf_metadata`): a filename stem is not a title, a
+    regex over a filename is not a verified DOI, and an ``SCI-`` substring of
+    a directory is not a bound workspace.
+
+    Consequences a caller must respect:
+
+    * it emits no Contract v1 artifact, no extraction sidecar, and no
+      ``OperationOutcome``; its return value is free text, not an envelope;
+    * it must not be used to write into the authoritative ``extracted/``
+      identity paths (``extracted/<document_id>.md``) or the sidecar
+      directory, whose contents are the E2 commit markers;
+    * nothing it produces may be cited as a verified extracted-text result.
+
+    The authoritative E2 extraction surface is the canonical
+    ``scholar-pdf-kit`` Python API
+    (``scholar_pdf.extraction.PDFExtractionService``) and its
+    ``scholar-pdf extract-run`` CLI (Packet E2 sections 7.2 and 9).
+    ``nexus_pdf_extraction`` declares that boundary on the MCP surface. This
+    tool's behaviour is deliberately left unchanged so the non-authoritative
+    path keeps working for exploration.
     """
     pdf_path = _resolve_path(pdf_path) or pdf_path
     output_dir = _resolve_path(output_dir) or output_dir
@@ -679,6 +724,46 @@ def nexus_pdf_acquire(
     envelope is produced by pure functions (no filesystem or network I/O).
     """
     return unsupported_capability_envelope_json(PDF_ACQUISITION)
+
+
+@mcp.tool()
+def nexus_pdf_extraction(
+    pdf_path: str = "",
+    output_dir: str = "",
+    engine: str = "",
+) -> str:
+    """DECLARED UNSUPPORTED: PDF extraction is not available through MCP (E2).
+
+    This tool exists so the boundary is *observable* rather than silently
+    omitted. PDF extraction (``pdf_extraction``) is declared in
+    ``scholar_agent.capabilities`` with ``mcp_supported=False``; the canonical
+    scholar-pdf-kit owns the domain service and exposes it through its Python
+    API (``scholar_pdf.extraction.PDFExtractionService``) and the
+    ``scholar-pdf extract-run`` CLI. Those API/CLI surfaces are the supported
+    E2 extraction surfaces; the legacy ``scholar_pdf.extract`` module and
+    ``scholar-pdf extract`` command are explicitly non-authoritative.
+
+    Note this is a *separate* declaration from E1's ``pdf_acquisition``, and
+    it neither broadens nor re-interprets that boundary. It also does not
+    replace ``nexus_extract_pdf``: that tool remains available as a
+    non-authoritative convenience, but it verifies nothing and derives its
+    metadata heuristically from the path, so it cannot answer an extraction
+    request authoritatively.
+
+    Arguments mirror the shape of a raw-path extraction request and are
+    accepted for discoverability only: the rejection is unconditional, so no
+    argument value is validated, interpreted, or echoed. No engine is
+    imported, no PDF is read, and nothing is written.
+
+    Returns a JSON operation envelope: ``operation="extract_pdf"``,
+    ``status="FAILED"``, ``artifacts=[]``, ``warnings=[]``, and exactly one
+    non-retryable error with ``code="UNSUPPORTED_CAPABILITY"`` whose message
+    names the API/CLI alternatives. The rejection occurs before any engine
+    import, provider transport, temporary/final file creation, sidecar
+    construction, or audit append; the envelope is produced by pure functions
+    over the immutable declaration (no filesystem or network I/O).
+    """
+    return unsupported_capability_envelope_json(PDF_EXTRACTION)
 
 
 # ==============================================================================
@@ -1879,10 +1964,14 @@ def main(argv: list[str] | None = None) -> None:
             "  - nexus_dedup: Deduplicate candidate documents by PID clustering\n"
             "  - nexus_screen: Systematic PRISMA screening against protocol criteria\n"
             "  - nexus_screen_llm: LLM-enhanced screening with heuristic fallback\n"
-            "  - nexus_extract_pdf: Extract structured Markdown from PDFs\n"
+            "  - nexus_extract_pdf: NON-AUTHORITATIVE legacy convenience - extracts via path heuristics; does not verify, identify, or claim Contract artifacts\n"
             "  - nexus_pdf_acquire: DECLARED UNSUPPORTED (E1) - rejects PDF acquisition with "
             "operation=acquire_pdf / status=FAILED / UNSUPPORTED_CAPABILITY before any I/O; "
             "use the scholar-pdf CLI or scholar_pdf API instead\n"
+            "  - nexus_pdf_extraction: DECLARED UNSUPPORTED (E2) - rejects PDF extraction with "
+            "operation=extract_pdf / status=FAILED / UNSUPPORTED_CAPABILITY before any I/O; "
+            "use the scholar-pdf extract-run CLI or "
+            "scholar_pdf.extraction.PDFExtractionService API instead\n"
             "  - nexus_rag_index: Index Markdown into ChromaDB with structural AST chunking\n"
             "  - nexus_rag_query: Hybrid search with sectional slicing and graph PageRank boosting\n"
             "  - nexus_rag_synthesize: Grounded synthesis with claim entailment verification\n"
