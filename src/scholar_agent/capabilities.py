@@ -154,19 +154,19 @@ ACQUIRE_API_ALTERNATIVE = (
     "Python `scholar_pdf.acquisition` API (acquisition request/outcome models)"
 )
 
-#: The E2 extraction alternatives, named verbatim for the same reason. The CLI
-#: form is the positional one that exists today (Packet E2 section 7.2 keeps
-#: ``scholar-pdf extract <path>`` as a non-authoritative convenience), and the
-#: API alternative names the module that actually holds the extraction engines
-#: and their ``extract_markdown`` entry points. Both strings are therefore
-#: checkable in a checkout rather than aspirational.
+#: The authoritative E2 extraction alternatives, named verbatim for the same
+#: reason. Stage 1 deliberately retained ``scholar-pdf extract <path>`` and
+#: ``scholar_pdf.extract`` as non-authoritative conveniences; redirecting an MCP
+#: rejection to either would erase the very boundary this declaration exists to
+#: expose. The parent-bound service is ``extract-run`` /
+#: :class:`scholar_pdf.extraction.PDFExtractionService`.
 EXTRACT_CLI_ALTERNATIVE = (
-    "`scholar-pdf extract` CLI (e.g. `uv run scholar-pdf extract <pdf_path> "
-    "--output <dir> --engine <docling|grobid>`)"
+    "`scholar-pdf extract-run` CLI (e.g. `uv run scholar-pdf extract-run "
+    "<config.json> --audit-logger <path-to-log_event.py>`)"
 )
 EXTRACT_API_ALTERNATIVE = (
-    "Python `scholar_pdf.extract` API (extraction engine classes and their "
-    "`extract_markdown` entry points)"
+    "Python `scholar_pdf.extraction.PDFExtractionService` API "
+    "(parent-bound extraction request/outcome service)"
 )
 
 ACQUISITION_REJECTION_MESSAGE = (

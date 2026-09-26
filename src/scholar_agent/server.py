@@ -660,8 +660,9 @@ def nexus_extract_pdf(
     * nothing it produces may be cited as a verified extracted-text result.
 
     The authoritative E2 extraction surface is the canonical
-    ``scholar-pdf-kit`` Python API (``scholar_pdf.extract``) and its
-    ``scholar-pdf extract`` CLI (Packet E2 sections 7.2 and 9).
+    ``scholar-pdf-kit`` Python API
+    (``scholar_pdf.extraction.PDFExtractionService``) and its
+    ``scholar-pdf extract-run`` CLI (Packet E2 sections 7.2 and 9).
     ``nexus_pdf_extraction`` declares that boundary on the MCP surface. This
     tool's behaviour is deliberately left unchanged so the non-authoritative
     path keeps working for exploration.
@@ -737,8 +738,10 @@ def nexus_pdf_extraction(
     omitted. PDF extraction (``pdf_extraction``) is declared in
     ``scholar_agent.capabilities`` with ``mcp_supported=False``; the canonical
     scholar-pdf-kit owns the domain service and exposes it through its Python
-    API (``scholar_pdf.extract``) and the ``scholar-pdf extract`` CLI. Those
-    API/CLI surfaces are the supported E2 extraction surfaces.
+    API (``scholar_pdf.extraction.PDFExtractionService``) and the
+    ``scholar-pdf extract-run`` CLI. Those API/CLI surfaces are the supported
+    E2 extraction surfaces; the legacy ``scholar_pdf.extract`` module and
+    ``scholar-pdf extract`` command are explicitly non-authoritative.
 
     Note this is a *separate* declaration from E1's ``pdf_acquisition``, and
     it neither broadens nor re-interprets that boundary. It also does not
@@ -1967,7 +1970,8 @@ def main(argv: list[str] | None = None) -> None:
             "use the scholar-pdf CLI or scholar_pdf API instead\n"
             "  - nexus_pdf_extraction: DECLARED UNSUPPORTED (E2) - rejects PDF extraction with "
             "operation=extract_pdf / status=FAILED / UNSUPPORTED_CAPABILITY before any I/O; "
-            "use the scholar-pdf extract CLI or scholar_pdf API instead\n"
+            "use the scholar-pdf extract-run CLI or "
+            "scholar_pdf.extraction.PDFExtractionService API instead\n"
             "  - nexus_rag_index: Index Markdown into ChromaDB with structural AST chunking\n"
             "  - nexus_rag_query: Hybrid search with sectional slicing and graph PageRank boosting\n"
             "  - nexus_rag_synthesize: Grounded synthesis with claim entailment verification\n"

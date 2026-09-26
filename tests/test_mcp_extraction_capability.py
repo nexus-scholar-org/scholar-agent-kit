@@ -310,8 +310,8 @@ E1_EXPECTED_ACQUISITION = {
 _E2_ONLY_MARKERS = (
     "extract_pdf",
     "E2 PDF extraction",
-    "scholar-pdf extract",
-    "scholar_pdf.extract",
+    "scholar-pdf extract-run",
+    "scholar_pdf.extraction.PDFExtractionService",
     "wp01_packet_e2_extracted_text_handoff",
 )
 
@@ -730,12 +730,14 @@ def test_e2_neg_019_envelope_details_name_the_supported_api_and_cli_surfaces():
     assert details["reference"] == caps.E2_REFERENCE
     assert len(details["alternatives"]) == 2
     joined = " ".join(details["alternatives"])
-    assert "scholar-pdf extract" in joined
-    assert "scholar_pdf.extract" in joined
+    assert "scholar-pdf extract-run" in joined
+    assert "scholar_pdf.extraction.PDFExtractionService" in joined
     message = envelope["errors"][0]["message"]
     assert "not available through MCP" in message
-    assert "scholar-pdf extract" in message
-    assert "scholar_pdf.extract" in message
+    assert "scholar-pdf extract-run" in message
+    assert "scholar_pdf.extraction.PDFExtractionService" in message
+    assert "`scholar-pdf extract` CLI" not in message
+    assert "Python `scholar_pdf.extract` API" not in message
     assert "API" in message and "CLI" in message
 
 
@@ -989,7 +991,7 @@ def test_e2_neg_019_legacy_raw_path_tool_is_declared_non_authoritative():
     assert "identity" in lowered
     # ...and the authoritative alternative is named.
     assert "scholar-pdf-kit" in lowered
-    assert "scholar-pdf extract" in doc
+    assert "scholar-pdf extract-run" in doc
     assert "scholar_pdf" in doc
 
 
