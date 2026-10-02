@@ -249,9 +249,27 @@ EXTRACT_API_ALTERNATIVE = (
 #: workspace substitution, no accepted parent, no ``PARTIAL`` result, free
 #: text). Redirecting a refusal there would re-create the boundary this
 #: declaration exists to expose.
+#:
+#: The example below is transcribed from the canonical T-90
+#: ``scholar_rag.cli index`` signature and is executable as written: one
+#: required positional ``docs_path`` plus the ten required options
+#: (``--parent-view``, ``--journal``, ``--workspace-root``, ``--run-id``,
+#: ``--created-at``, ``--producer-version``, ``--producer-commit``,
+#: ``--embedder-provider``, ``--embedder-model``, ``--embedder-dimension``);
+#: the remaining options are left at their documented defaults so the message
+#: stays bounded. It previously named an audit logger option, which the rag-kit
+#: ``index`` command has never had, and passed a workspace where a
+#: ``docs_path`` is required. An alternative is only actionable if it can be
+#: pasted and run, so ``test_e3_neg_041_advertised_cli_matches_canonical_index_signature``
+#: re-derives the real flag set from that command and rejects any invented
+#: token -- this constant may not drift away from the command it points at.
 INDEX_CLI_ALTERNATIVE = (
-    "`scholar-rag index` CLI (e.g. `uv run scholar-rag index "
-    "<workspace> --audit-logger <path-to-log_event.py>`)"
+    "`scholar-rag index` CLI (e.g. `uv run scholar-rag index <docs_path> "
+    "--parent-view <parent_view.json> --journal <journal.jsonl> "
+    "--workspace-root <workspace-root> --run-id <run-id> "
+    "--created-at <rfc3339-timestamp> --producer-version <version> "
+    "--producer-commit <40-hex-commit> --embedder-provider <provider> "
+    "--embedder-model <model> --embedder-dimension <int>`)"
 )
 INDEX_API_ALTERNATIVE = (
     "Python `scholar_rag.index_service` API "

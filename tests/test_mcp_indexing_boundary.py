@@ -28,6 +28,9 @@ decision, and it asserts the properties the decision rests on:
   than forwarded to, and mutation tests fail loudly if it is ever reintroduced;
 * agent-kit contains no second indexing implementation -- this change adds a
   *declaration*, never a second indexer;
+* the advertised ``scholar-rag index`` alternative is checked against the
+  canonical T-90 command's own signature, so a caller cannot be redirected to a
+  flag the owning command does not accept;
 * ``E1``/``E2`` declarations are unchanged by this addition.
 
 Every test is offline, hermetic, and deterministic: no network, no real vector
@@ -821,6 +824,120 @@ def test_e3_neg_041_envelope_details_name_the_supported_api_and_cli_surfaces():
     message = envelope["errors"][0]["message"]
     for alternative in alternatives:
         assert alternative in message
+
+
+def test_e3_neg_041_advertised_cli_matches_canonical_index_signature():
+    """API/CLI note: the advertised CLI is executable, not merely named.
+
+    Packet E3 section 9.1 requires the rejection to be *actionable*, which is a
+    property of the text itself: an alternative that names a flag the owning
+    command does not have is worse than no alternative, because the caller
+    discovers the lie only after pasting it into a shell. The E3 alternative
+    previously advertised an audit logger option that ``scholar-rag index`` has
+    never accepted.
+
+    The real flag set is *derived* from the canonical T-90 command rather than
+    hand-frozen here, so the assertion keeps working as the command evolves and
+    fails loudly the moment the two drift apart in either direction.
+    """
+    # The canonical command is imported function-locally, not at module scope:
+    # this test states a version floor on scholar-rag-kit (the T-90
+    # ``scholar_rag.cli index`` command). A rag-kit older than that floor must
+    # fail as this one test rather than as a collection error that hides every
+    # other test in this module -- and the rest of the E3 boundary holds
+    # independently of the rag-kit's CLI.
+    import scholar_rag.cli as rag_cli
+    import typer
+
+    cli_command = typer.main.get_command(rag_cli.app)
+    # typer collapses an app that declares a single command into that command
+    # itself, so the sub-command map only exists for multi-command apps. Both
+    # shapes must resolve to the same answer, and neither may raise here.
+    sub_commands = getattr(cli_command, "commands", None)
+    if sub_commands is None:
+        sub_commands = (
+            {"index": cli_command}
+            if getattr(cli_command, "name", None) == "index"
+            else {}
+        )
+    assert "index" in sub_commands, (
+        "scholar_rag.cli has no `index` command: this rag-kit predates the "
+        "T-90 index service the E3 alternative points at"
+    )
+    params = sub_commands["index"].params
+    real_flags = {
+        option for param in params for option in param.opts if option.startswith("--")
+    }
+    real_positionals = {
+        option
+        for param in params
+        for option in param.opts
+        if not option.startswith("-")
+    }
+
+    advertised = caps.INDEX_CLI_ALTERNATIVE
+    assert "scholar-rag index" in advertised
+    advertised_flags = {
+        token.strip('`<>"').rstrip(",;)")
+        for token in advertised.split()
+        if token.strip('`<>"').startswith("--")
+    }
+    assert advertised_flags, "the advertised CLI alternative names no options"
+    unknown = advertised_flags - real_flags
+    assert not unknown, (
+        f"the advertised CLI names options the canonical `scholar-rag index` "
+        f"command does not accept: {sorted(unknown)}"
+    )
+
+    # The same scrutiny applies to the positional argument: the command takes
+    # exactly one, and it must be named correctly. The old advertisement passed
+    # `<workspace>` where `docs_path` is required, which the flag checks above
+    # cannot see because a placeholder carries no leading dashes.
+    assert real_positionals, (
+        "the canonical `index` command takes no positional argument, which is a defect"
+    )
+    invocation = advertised.split("uv run scholar-rag index", 1)
+    assert len(invocation) == 2, (
+        "the advertised CLI alternative does not contain a `uv run scholar-rag "
+        f"index` invocation to check: {advertised!r}"
+    )
+    positional_token = invocation[1].strip(" `").split()[0]
+    assert positional_token.startswith("<") and positional_token.endswith(">"), (
+        f"the advertised CLI example passes no positional `docs_path`: "
+        f"{positional_token!r}"
+    )
+    advertised_positional = positional_token.strip("`<>")
+    assert advertised_positional in real_positionals, (
+        f"the advertised CLI names a positional argument the canonical "
+        f"`scholar-rag index` command does not accept: {advertised_positional!r}"
+    )
+
+    # The example is only runnable if every required parameter is supplied, so
+    # a partial example is a defect too (and would silently pass the checks
+    # above, which only police invented names).
+    required = {
+        option
+        for param in params
+        if getattr(param, "required", False)
+        for option in param.opts
+    }
+    assert required, "the canonical `index` command requires nothing, which is a defect"
+    missing = required - advertised_flags - {advertised_positional}
+    assert not missing, (
+        f"the advertised CLI omits required parameters of `scholar-rag index`: "
+        f"{sorted(missing)}"
+    )
+
+    # And the advertisement is carried verbatim by the envelope, so the
+    # signature check above covers what a caller actually reads.
+    details = _envelope(nexus_rag_index(**INDEXING_REQUEST_ARGS))["errors"][0][
+        "details"
+    ]
+    assert details["alternatives"][0] == caps.INDEX_CLI_ALTERNATIVE
+    assert (
+        caps.INDEX_CLI_ALTERNATIVE
+        in _envelope(nexus_rag_index(**INDEXING_REQUEST_ARGS))["errors"][0]["message"]
+    )
 
 
 def test_e3_neg_040_envelope_is_never_free_text_only():
