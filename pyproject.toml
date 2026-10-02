@@ -1,25 +1,86 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "scholar-agent-kit"
 version = "0.1.0"
 description = "MCP Server exposing all Nexus Scholar tools to AI Agents"
 requires-python = ">=3.11"
 dependencies = [
-    "mcp",
-    "scholar-protocol-kit",
-    "scholar-search-kit",
-    "scholar-bib-kit",
-    "scholar-pdf-kit[extract]",
-    "scholar-rag-kit",
-    "scholar-graph-kit"
+    # `mcp>=2.1.1` is a floor, not a widening: server.py:56 does
+    # `from mcp.server.mcpserver import MCPServer`, and `mcp.server.mcpserver`
+    # does not exist before 2.1.1. The lower bound matches the version this
+    # repo already locked, so the declaration pins behaviour instead of
+    # permitting an older, incompatible mcp.
+    "mcp>=2.1.1",
+    # Sibling Nexus Scholar packages are declared as PEP 508 direct git
+    # references pinned to canonical main SHAs. None of them are published on
+    # PyPI, so a bare name cannot be resolved from the public index by a
+    # standalone `uv pip install scholar_agent`. The direct ref is the
+    # standalone carrier and carries the requirement into the wheel METADATA as
+    # `git+https://...@<sha>`.
+    #
+    # Every ref below corresponds to a MODULE-LEVEL import in
+    # scholar_agent/server.py. scholar-verify-kit is the one that was previously
+    # reachable only through the harness monorepo sys.path seam and was NOT
+    # declared at all (E3/T-110 import inventory); it is declared here.
+    #
+    # nexus-scholar-harness is deliberately NOT in this list. server.py imports
+    # scholar_harness.recon and scholar_harness.recon.gates only INSIDE
+    # _ensure_harness_recon_loaded(); at module level those names are bound to
+    # None and rebound on first use. The harness is not a pip-installable
+    # standalone distribution, so declaring it here would have forced every
+    # consumer to pin the whole monorepo for a feature this kit does not require
+    # to import. See the lazy-guard note after the list.
+    "scholar-protocol-kit @ git+https://github.com/nexus-scholar-org/scholar-protocol-kit@4e10f25c25a1b150ce518348d211c7771683a9b7",
+    "scholar-search-kit @ git+https://github.com/nexus-scholar-org/scholar-search-kit@911d864fcb6a706d4c0339f80524a46f591e2cad",
+    "scholar-bib-kit @ git+https://github.com/nexus-scholar-org/scholar-bib-kit@fbdd38ba25301e613621f18119623f04d2673dca",
+    "scholar-pdf-kit[extract] @ git+https://github.com/nexus-scholar-org/scholar-pdf-kit@3c024c37071b49265cfea6e713c1c9065e2a2cc0",
+    "scholar-rag-kit @ git+https://github.com/nexus-scholar-org/scholar-rag-kit@033191eff967abf19023b258539c9a1422c8747f",
+    "scholar-graph-kit @ git+https://github.com/nexus-scholar-org/scholar-graph-kit@646b84cec215ebd9b7b449448bca879492e78492",
+    "scholar-verify-kit @ git+https://github.com/nexus-scholar-org/scholar-verify-kit@44a8d63cc0a11694bbcb7a355a53f73c3f93145c",
+    # LAZY-GUARDED, NOT A RUNTIME DEPENDENCY (E3/T-110b / F-AGT-01).
+    # scholar_harness.recon / scholar_harness.recon.gates are imported INSIDE
+    # _ensure_harness_recon_loaded() (server.py:194-225), which the recon tools
+    # call on demand. At module level DEFAULT_LEXICON, DomainLexicon,
+    # ReconEngine, canonical_recon_root, distill_pool, execute_followups,
+    # merge_lexicons, compute_pool_sufficiency, compute_topic_purity and
+    # RECON_CACHE_ROOT are all None until that function runs successfully.
+    # scholar_harness.orchestrator is likewise imported function-locally inside
+    # nexus_pipeline_run (server.py:634). Consequently the recon/MCP surface
+    # stays live inside the harness monorepo, where _harness_src() injects
+    # <repo>/src onto sys.path, while the built wheel installs and imports
+    # standalone with no harness distribution present. Therefore
+    # nexus-scholar-harness must NOT appear in this dependency list or in
+    # uv.lock; this comment records that decision so it is not re-added.
 ]
 
-[tool.uv.sources]
-scholar-protocol-kit = { path = "../scholar-protocol-kit", editable = true }
-scholar-search-kit = { path = "../scholar-search-kit", editable = true }
-scholar-bib-kit = { path = "../scholar-bib-kit", editable = true }
-scholar-pdf-kit = { path = "../scholar-pdf-kit", editable = true }
-scholar-rag-kit = { path = "../scholar-rag-kit", editable = true }
-scholar-graph-kit = { path = "../scholar-graph-kit", editable = true }
+# Inventory-driven: the test suite imports `pytest`, which is not a runtime
+# dependency. `ruff` is the repo lint gate (uv run ruff check src tests).
+# No `async def test_*` functions exist, so pytest-asyncio is not required.
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.4.0",
+]
 
 [project.scripts]
 scholar-agent = "scholar_agent.server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/scholar_agent"]
+
+# hatchling refuses PEP 508 direct references unless this is set. It is required
+# here because no sibling kit is on PyPI, so the only installable standalone
+# declaration is a git direct reference. (scholar-pdf-kit already uses the same
+# opt-in.) Note this makes the wheel intentionally non-uploadable to PyPI, which
+# is correct: these kits are installed from their canonical git repositories.
+[tool.hatch.metadata]
+allow-direct-references = true
+
+# E3/T-110: the relative editable sibling sources that used to live here were
+# removed. They only resolved inside the harness monorepo (or a sibling checkout
+# on disk), so they made the built wheel uninstallable anywhere else. The
+# `git+https://...@<sha>` direct references in [project.dependencies] are now
+# the single standalone carrier. No other [tool.uv.sources] entries exist.

@@ -7,12 +7,12 @@ resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'emscripten'",
     "python_full_version >= '3.14' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version == '3.13.*' and sys_platform == 'emscripten'",
-    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.13.*' and sys_platform == 'darwin'",
-    "python_full_version == '3.12.*' and sys_platform == 'darwin'",
-    "python_full_version < '3.12' and sys_platform == 'darwin'",
     "python_full_version == '3.13.*' and sys_platform != 'darwin' and sys_platform != 'emscripten'",
+    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
+    "python_full_version == '3.12.*' and sys_platform == 'darwin'",
     "python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'emscripten'",
+    "python_full_version < '3.12' and sys_platform == 'darwin'",
     "python_full_version < '3.12' and sys_platform == 'win32'",
     "python_full_version < '3.12' and sys_platform == 'emscripten'",
     "python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32'",
@@ -1431,6 +1431,15 @@ wheels = [
 ]
 
 [[package]]
+name = "iniconfig"
+version = "2.3.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/72/34/14ca021ce8e5dfedc35312d08ba8bf51fdd999c576889fc2c24cb97f4f10/iniconfig-2.3.0.tar.gz", hash = "sha256:c76315c77db068650d49c5b56314774a7804df16fee4402c1f19d6d15d8c4730", size = 20503, upload-time = "2025-10-18T21:55:43.219Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cb/b1/3846dd7f199d53cb17f49cba7e651e9ce294d8497c8c150530ed11865bb8/iniconfig-2.3.0-py3-none-any.whl", hash = "sha256:f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12", size = 7484, upload-time = "2025-10-18T21:55:41.639Z" },
+]
+
+[[package]]
 name = "ipython"
 version = "9.16.1"
 source = { registry = "https://pypi.org/simple" }
@@ -2378,10 +2387,10 @@ resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'emscripten'",
     "python_full_version >= '3.14' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version == '3.13.*' and sys_platform == 'emscripten'",
-    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.13.*' and sys_platform == 'darwin'",
-    "python_full_version == '3.12.*' and sys_platform == 'darwin'",
     "python_full_version == '3.13.*' and sys_platform != 'darwin' and sys_platform != 'emscripten'",
+    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
+    "python_full_version == '3.12.*' and sys_platform == 'darwin'",
     "python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'emscripten'",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/9a/80/db0b4559e57ec36362bedbb05530a87fafbcb6067708c946967a41d449e7/numpy-2.5.2.tar.gz", hash = "sha256:d482d171c406ae88c5b19cad3b6a1c4c5209f886ab74bc44c2c865c23f52d860", size = 20773161, upload-time = "2026-08-09T13:48:27.962Z" }
@@ -3706,6 +3715,22 @@ wheels = [
 ]
 
 [[package]]
+name = "pytest"
+version = "9.1.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "iniconfig" },
+    { name = "packaging" },
+    { name = "pluggy" },
+    { name = "pygments" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e4/47/b9efed96c114afcfa3c9d3fe98a76a1d14c74a9e266d397cf6eb64be5e01/pytest-9.1.1.tar.gz", hash = "sha256:1088fbde8f2b49d95a549a195707afa7a76a3ce9bcadc26b6d71f0ffda5fe313", size = 1636369, upload-time = "2026-06-19T10:58:32.857Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/24/25/1de2678b631f5a49215c6c96fff41ba892b0a34df68d6d80292b1b48aa7f/pytest-9.1.1-py3-none-any.whl", hash = "sha256:37a86b45efb9a47a61a36449063e8e18d0cab3161329fc099eb21783169c4f0c", size = 386536, upload-time = "2026-06-19T10:58:31.347Z" },
+]
+
+[[package]]
 name = "python-dateutil"
 version = "2.9.0.post0"
 source = { registry = "https://pypi.org/simple" }
@@ -4189,6 +4214,31 @@ wheels = [
 ]
 
 [[package]]
+name = "ruff"
+version = "0.16.10"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c4/49/23802c45f093eb14bde54b141d2b2f058edfa63a06db7beed047308cc08f/ruff-0.16.10.tar.gz", hash = "sha256:eff4728c4eaae93f0955cd264d24b2ab348e74bf59986ccf282ba6dc16b3b017", size = 4958724, upload-time = "2026-10-01T18:03:21.697Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2f/21/ebce22e1d90cdb2cd691026b9c6e9bec6499f0b396089481755b5d49efff/ruff-0.16.10-py3-none-linux_armv6l.whl", hash = "sha256:488b0fe3f3574210e5cf80d9f59b9e3ab17a127a8155de3f307b392589cfb511", size = 10095557, upload-time = "2026-10-01T18:02:36.072Z" },
+    { url = "https://files.pythonhosted.org/packages/cb/98/a54de85876a8b2612bfa0d84c7b9abfb39c6a3354aee7800b09c1649b9e3/ruff-0.16.10-py3-none-macosx_10_12_x86_64.whl", hash = "sha256:e748ff95c934c4e978783b8e687bc174e7bd84e8ad24e3243e1ecfcda5e0282d", size = 10340577, upload-time = "2026-10-01T18:02:39.258Z" },
+    { url = "https://files.pythonhosted.org/packages/9f/16/1a5a4a2657effe4806110f2b907313802f1367fcdbb29e8122766e407fab/ruff-0.16.10-py3-none-macosx_11_0_arm64.whl", hash = "sha256:3031a4a2e8e7b8a46f70be45f198c35a11ece509a94b80334d8d397a33c67550", size = 9774282, upload-time = "2026-10-01T18:02:41.79Z" },
+    { url = "https://files.pythonhosted.org/packages/6e/fb/470085af734da396e68cd80fb0a3e7c109a459716ae59588c0f6fab8a17d/ruff-0.16.10-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:494401c86df4c4c25f69b9419605d944467ee98c42fb6ad405ef4fa40b8fb67d", size = 9920895, upload-time = "2026-10-01T18:02:44.458Z" },
+    { url = "https://files.pythonhosted.org/packages/57/de/f10cffe4f88a37ea6615ec460f01bf76f0bc1477737a35d9ee61a630a78b/ruff-0.16.10-py3-none-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:d203abc0ff2b773ee33d00ab8df0bb67046fbc7c07b119332f08b9b345cf8221", size = 9902707, upload-time = "2026-10-01T18:02:47.041Z" },
+    { url = "https://files.pythonhosted.org/packages/ff/44/3fdcedf83ae60ef837dd239170e480dce606a9142cfa2db911afdf855fd9/ruff-0.16.10-py3-none-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:bd83d1235a5258d318477bc5b576303974cbdef5df0c01a1bff14efcc23bd12a", size = 10619287, upload-time = "2026-10-01T18:02:49.485Z" },
+    { url = "https://files.pythonhosted.org/packages/c1/62/02e76a5574002153618eafbb70e159468addc72a5d2c488e65cbb4639d2d/ruff-0.16.10-py3-none-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:bc2610fb269fa56dd8a68669ae470fa6272902668c0fc2ebc3aa112b2633d5b8", size = 11339942, upload-time = "2026-10-01T18:02:52.008Z" },
+    { url = "https://files.pythonhosted.org/packages/6b/c4/cde27d47ad8d4126c587e608c67c46e7feac11763f606d261a1bc8a489e6/ruff-0.16.10-py3-none-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:3e70175e29cc94c26ea296c80e470180b744b7419026898e58f520c6ab32578e", size = 10934316, upload-time = "2026-10-01T18:02:54.811Z" },
+    { url = "https://files.pythonhosted.org/packages/e4/03/17234145f302a645a123e8c3bb2411ecf4669fbc350de3b0d803230a1729/ruff-0.16.10-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f33f43a864a8483eebd160e713336c8bab02c934feaff0a33cf5ccb41546d09a", size = 10387968, upload-time = "2026-10-01T18:02:57.497Z" },
+    { url = "https://files.pythonhosted.org/packages/71/29/2493af60240ee7644b38a4b821f5f9c3b5a4fa3178770fe1d0c685217395/ruff-0.16.10-py3-none-manylinux_2_31_riscv64.whl", hash = "sha256:1dfc6f0088149fb6a362c1c446bcbb3fd2157b3852fe2fa68409276eab9ad9b3", size = 10537906, upload-time = "2026-10-01T18:03:00.006Z" },
+    { url = "https://files.pythonhosted.org/packages/2e/9a/f56b28f3b143bb9e518c34fb89ab191b626bca8b70dbf8af0d2e2d473572/ruff-0.16.10-py3-none-musllinux_1_2_aarch64.whl", hash = "sha256:6553498afc35f580f036030795810b9e6bcea31604b0fd9e8d352795473042e3", size = 10012938, upload-time = "2026-10-01T18:03:03.006Z" },
+    { url = "https://files.pythonhosted.org/packages/c2/c4/fca37362848ea4d4d80712df13632e645e7c7cfb1bdedf140699ac7a090b/ruff-0.16.10-py3-none-musllinux_1_2_armv7l.whl", hash = "sha256:a3b8471dea115d37f123882be852bed13403746d3a76c11de4a19ec5f9ff5a03", size = 9897945, upload-time = "2026-10-01T18:03:05.818Z" },
+    { url = "https://files.pythonhosted.org/packages/7d/c7/e0bc57664d6e0c61fd22f620af260fe9662d7e1ddb320ea7f160e76ef165/ruff-0.16.10-py3-none-musllinux_1_2_i686.whl", hash = "sha256:92e59a70bcbd9d3a5483656da906ec28edfdacfce00afd99edb8b4e9d15644be", size = 10333134, upload-time = "2026-10-01T18:03:08.25Z" },
+    { url = "https://files.pythonhosted.org/packages/21/aa/5c9f3b68737c0e4a33a1db5dfab44f7b786d96ca91a7233112ddab1e6dc2/ruff-0.16.10-py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:7ae7375f803b5520dc9f546bed7e3a0acb70b91812e9bb4b19927de22f25b77d", size = 10741702, upload-time = "2026-10-01T18:03:10.775Z" },
+    { url = "https://files.pythonhosted.org/packages/78/fa/0f9c2020dc316c53d983be011720b8157cc052b97e3f4dfa7db6d0f880a6/ruff-0.16.10-py3-none-win32.whl", hash = "sha256:2a12e01cb9156c10c466f63b46eaae5ecea28dfbd21b5836353ae498e7d1349a", size = 10139176, upload-time = "2026-10-01T18:03:13.267Z" },
+    { url = "https://files.pythonhosted.org/packages/99/29/cfb0df9448d4d4ad48c2de029ada9ebd71baa6da983a6c77ee6c6cd0fe82/ruff-0.16.10-py3-none-win_amd64.whl", hash = "sha256:97f2015c92aa97105b0eab19eb5d224884399281cfc5da86a92db4ab5e7fb2ca", size = 10584734, upload-time = "2026-10-01T18:03:16.006Z" },
+    { url = "https://files.pythonhosted.org/packages/fc/05/c16957eb287c3fc062e032619a25868d93d408a844b725bcf514f7a378ff/ruff-0.16.10-py3-none-win_arm64.whl", hash = "sha256:25a65fe998c4e6861ec079ada5826a2fc605e6cbccbe9dcd7fac1f54e791621b", size = 10366440, upload-time = "2026-10-01T18:03:19.04Z" },
+]
+
+[[package]]
 name = "safetensors"
 version = "0.8.0"
 source = { registry = "https://pypi.org/simple" }
@@ -4222,7 +4272,7 @@ torch = [
 [[package]]
 name = "scholar-agent-kit"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "mcp" },
     { name = "scholar-bib-kit" },
@@ -4231,23 +4281,34 @@ dependencies = [
     { name = "scholar-protocol-kit" },
     { name = "scholar-rag-kit" },
     { name = "scholar-search-kit" },
+    { name = "scholar-verify-kit" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "mcp" },
-    { name = "scholar-bib-kit", editable = "../scholar-bib-kit" },
-    { name = "scholar-graph-kit", editable = "../scholar-graph-kit" },
-    { name = "scholar-pdf-kit", extras = ["extract"], editable = "../scholar-pdf-kit" },
-    { name = "scholar-protocol-kit", editable = "../scholar-protocol-kit" },
-    { name = "scholar-rag-kit", editable = "../scholar-rag-kit" },
-    { name = "scholar-search-kit", editable = "../scholar-search-kit" },
+    { name = "mcp", specifier = ">=2.1.1" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4.0" },
+    { name = "scholar-bib-kit", git = "https://github.com/nexus-scholar-org/scholar-bib-kit?rev=fbdd38ba25301e613621f18119623f04d2673dca" },
+    { name = "scholar-graph-kit", git = "https://github.com/nexus-scholar-org/scholar-graph-kit?rev=646b84cec215ebd9b7b449448bca879492e78492" },
+    { name = "scholar-pdf-kit", extras = ["extract"], git = "https://github.com/nexus-scholar-org/scholar-pdf-kit?rev=3c024c37071b49265cfea6e713c1c9065e2a2cc0" },
+    { name = "scholar-protocol-kit", git = "https://github.com/nexus-scholar-org/scholar-protocol-kit?rev=4e10f25c25a1b150ce518348d211c7771683a9b7" },
+    { name = "scholar-rag-kit", git = "https://github.com/nexus-scholar-org/scholar-rag-kit?rev=033191eff967abf19023b258539c9a1422c8747f" },
+    { name = "scholar-search-kit", git = "https://github.com/nexus-scholar-org/scholar-search-kit?rev=911d864fcb6a706d4c0339f80524a46f591e2cad" },
+    { name = "scholar-verify-kit", git = "https://github.com/nexus-scholar-org/scholar-verify-kit?rev=44a8d63cc0a11694bbcb7a355a53f73c3f93145c" },
 ]
+provides-extras = ["dev"]
 
 [[package]]
 name = "scholar-bib-kit"
 version = "0.1.0"
-source = { editable = "../scholar-bib-kit" }
+source = { git = "https://github.com/nexus-scholar-org/scholar-bib-kit?rev=fbdd38ba25301e613621f18119623f04d2673dca#fbdd38ba25301e613621f18119623f04d2673dca" }
 dependencies = [
     { name = "bibtexparser" },
     { name = "pydantic" },
@@ -4256,19 +4317,10 @@ dependencies = [
     { name = "typer" },
 ]
 
-[package.metadata]
-requires-dist = [
-    { name = "bibtexparser", specifier = ">=2.0.0b7" },
-    { name = "pydantic", specifier = ">=2.0.0" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "scholar-search-kit", editable = "../scholar-search-kit" },
-    { name = "typer", specifier = ">=0.9.0" },
-]
-
 [[package]]
 name = "scholar-graph-kit"
 version = "0.1.0"
-source = { editable = "../scholar-graph-kit" }
+source = { git = "https://github.com/nexus-scholar-org/scholar-graph-kit?rev=646b84cec215ebd9b7b449448bca879492e78492#646b84cec215ebd9b7b449448bca879492e78492" }
 dependencies = [
     { name = "aiohttp" },
     { name = "networkx" },
@@ -4279,30 +4331,19 @@ dependencies = [
     { name = "typer" },
 ]
 
-[package.metadata]
-requires-dist = [
-    { name = "aiohttp", specifier = ">=3.9.0" },
-    { name = "networkx", specifier = ">=3.0" },
-    { name = "pydantic", specifier = ">=2.0.0" },
-    { name = "pyvis", specifier = ">=0.3.2" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "scholar-search-kit", editable = "../scholar-search-kit" },
-    { name = "typer", specifier = ">=0.9.0" },
-]
-
 [[package]]
 name = "scholar-pdf-kit"
 version = "0.1.0"
-source = { editable = "../scholar-pdf-kit" }
+source = { git = "https://github.com/nexus-scholar-org/scholar-pdf-kit?rev=3c024c37071b49265cfea6e713c1c9065e2a2cc0#3c024c37071b49265cfea6e713c1c9065e2a2cc0" }
 dependencies = [
     { name = "aiohttp" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pymupdf" },
     { name = "pypdf" },
+    { name = "pyyaml" },
     { name = "requests" },
     { name = "rich" },
-    { name = "scholar-search-kit" },
     { name = "tenacity" },
     { name = "typer" },
 ]
@@ -4314,51 +4355,20 @@ extract = [
     { name = "requests" },
 ]
 
-[package.metadata]
-requires-dist = [
-    { name = "aiohttp", specifier = ">=3.9.0" },
-    { name = "docling", marker = "extra == 'extract'", specifier = ">=2.5.0" },
-    { name = "lxml", marker = "extra == 'extract'" },
-    { name = "pydantic", specifier = ">=2.0.0" },
-    { name = "pydantic-settings", specifier = ">=2.0.0" },
-    { name = "pymupdf", specifier = ">=1.24.0" },
-    { name = "pypdf", specifier = ">=4.0.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21.0" },
-    { name = "requests", specifier = ">=2.31.0" },
-    { name = "requests", marker = "extra == 'extract'" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "scholar-search-kit", editable = "../scholar-search-kit" },
-    { name = "tenacity", specifier = ">=8.0.0" },
-    { name = "typer", specifier = ">=0.9.0" },
-    { name = "vcrpy", marker = "extra == 'dev'", specifier = ">=5.0.0" },
-]
-provides-extras = ["dev", "extract"]
-
 [[package]]
 name = "scholar-protocol-kit"
 version = "1.0.0"
-source = { editable = "../scholar-protocol-kit" }
+source = { git = "https://github.com/nexus-scholar-org/scholar-protocol-kit?rev=4e10f25c25a1b150ce518348d211c7771683a9b7#4e10f25c25a1b150ce518348d211c7771683a9b7" }
 dependencies = [
     { name = "pydantic" },
     { name = "rich" },
     { name = "typer" },
 ]
 
-[package.metadata]
-requires-dist = [
-    { name = "pydantic", specifier = ">=2.0.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4.0" },
-    { name = "typer", specifier = ">=0.9.0" },
-]
-provides-extras = ["dev"]
-
 [[package]]
 name = "scholar-rag-kit"
 version = "0.1.0"
-source = { editable = "../scholar-rag-kit" }
+source = { git = "https://github.com/nexus-scholar-org/scholar-rag-kit?rev=033191eff967abf19023b258539c9a1422c8747f#033191eff967abf19023b258539c9a1422c8747f" }
 dependencies = [
     { name = "bibtexparser" },
     { name = "chromadb" },
@@ -4368,35 +4378,16 @@ dependencies = [
     { name = "rich" },
     { name = "scholar-bib-kit" },
     { name = "scholar-graph-kit" },
+    { name = "scholar-protocol-kit" },
     { name = "scholar-search-kit" },
     { name = "sentence-transformers" },
     { name = "typer" },
 ]
 
-[package.metadata]
-requires-dist = [
-    { name = "bibtexparser", specifier = ">=2.0.0b7" },
-    { name = "chromadb", specifier = ">=0.4.22" },
-    { name = "networkx", specifier = ">=3.0" },
-    { name = "openai", specifier = ">=1.12.0" },
-    { name = "pydantic", specifier = ">=2.0.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.0.0" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
-    { name = "scholar-bib-kit", editable = "../scholar-bib-kit" },
-    { name = "scholar-graph-kit", editable = "../scholar-graph-kit" },
-    { name = "scholar-search-kit", editable = "../scholar-search-kit" },
-    { name = "sentence-transformers", specifier = ">=2.3.1" },
-    { name = "typer", specifier = ">=0.9.0" },
-]
-provides-extras = ["dev"]
-
 [[package]]
 name = "scholar-search-kit"
 version = "0.1.0"
-source = { editable = "../scholar-search-kit" }
+source = { git = "https://github.com/nexus-scholar-org/scholar-search-kit?rev=911d864fcb6a706d4c0339f80524a46f591e2cad#911d864fcb6a706d4c0339f80524a46f591e2cad" }
 dependencies = [
     { name = "hishel" },
     { name = "httpx" },
@@ -4406,19 +4397,15 @@ dependencies = [
     { name = "typer" },
 ]
 
-[package.metadata]
-requires-dist = [
-    { name = "hishel", specifier = "==0.0.32" },
-    { name = "httpx", specifier = ">=0.28.1" },
-    { name = "pydantic", specifier = ">=2.0.0" },
-    { name = "pydantic-settings", specifier = ">=2.0.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21.0" },
-    { name = "rich", specifier = ">=13.9.4" },
-    { name = "typer", specifier = ">=0.9.0" },
-    { name = "vcrpy", marker = "extra == 'dev'", specifier = ">=5.0.0" },
+[[package]]
+name = "scholar-verify-kit"
+version = "0.1.0"
+source = { git = "https://github.com/nexus-scholar-org/scholar-verify-kit?rev=44a8d63cc0a11694bbcb7a355a53f73c3f93145c#44a8d63cc0a11694bbcb7a355a53f73c3f93145c" }
+dependencies = [
+    { name = "requests" },
+    { name = "rich" },
+    { name = "typer" },
 ]
-provides-extras = ["dev"]
 
 [[package]]
 name = "scikit-learn"
@@ -4554,10 +4541,10 @@ resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'emscripten'",
     "python_full_version >= '3.14' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version == '3.13.*' and sys_platform == 'emscripten'",
-    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.13.*' and sys_platform == 'darwin'",
-    "python_full_version == '3.12.*' and sys_platform == 'darwin'",
     "python_full_version == '3.13.*' and sys_platform != 'darwin' and sys_platform != 'emscripten'",
+    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
+    "python_full_version == '3.12.*' and sys_platform == 'darwin'",
     "python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'emscripten'",
 ]
 dependencies = [
@@ -4876,8 +4863,8 @@ resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'emscripten'",
     "python_full_version >= '3.14' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version == '3.13.*' and sys_platform == 'emscripten'",
-    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.13.*' and sys_platform != 'darwin' and sys_platform != 'emscripten'",
+    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'emscripten'",
     "python_full_version < '3.12' and sys_platform == 'win32'",
     "python_full_version < '3.12' and sys_platform == 'emscripten'",
@@ -5037,8 +5024,8 @@ resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'emscripten'",
     "python_full_version >= '3.14' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version == '3.13.*' and sys_platform == 'emscripten'",
-    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.13.*' and sys_platform != 'darwin' and sys_platform != 'emscripten'",
+    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'emscripten'",
     "python_full_version < '3.12' and sys_platform == 'win32'",
     "python_full_version < '3.12' and sys_platform == 'emscripten'",
