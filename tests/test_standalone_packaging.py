@@ -4,14 +4,23 @@ scholar-agent-kit shipped NO ``[build-system]`` at all, so ``uv build --wheel .`
 could not succeed, and it declared its sibling kits as BARE names resolvable only
 through relative editable ``[tool.uv.sources]`` paths. Two required siblings
 were not declared at all: ``scholar-verify-kit`` and ``nexus-scholar-harness``,
-even though ``scholar_agent/server.py`` imports both at module level.
+even though ``scholar_agent/server.py`` imported both at module level.
+
+E3/T-110b / F-AGT-01 changed the second half of that: ``nexus-scholar-harness``
+is no longer a runtime dependency at all. ``server.py`` now imports
+``scholar_harness.recon`` and ``scholar_harness.recon.gates`` only INSIDE
+``_ensure_harness_recon_loaded()``, so the recon names are module-level ``None``
+until that function runs, and ``scholar_harness.orchestrator`` is imported
+function-locally. The harness is therefore NOT declared, and this module guards
+that absence explicitly -- see ``test_harness_is_not_a_runtime_dependency``.
 
 This test locks in the fix: the build backend and wheel package are declared,
-every sibling is a PEP 508 direct git reference pinned to a full 40-hex
-canonical SHA, and no relative path source may come back. It is hermetic -- it
-reads the checked-in ``pyproject.toml`` only and never touches the network.
-When a wheel has already been built into ``dist/``, the built METADATA is
-additionally checked.
+every declared sibling is a PEP 508 direct git reference pinned to a full 40-hex
+canonical SHA, no relative path source may come back, and the harness must not
+reappear as a runtime dependency. It is hermetic -- it reads the checked-in
+``pyproject.toml`` and ``uv.lock`` only and never touches the network. When a
+wheel has already been built into ``dist/``, the built METADATA is additionally
+checked.
 """
 
 from __future__ import annotations
@@ -22,6 +31,10 @@ import zipfile
 from pathlib import Path
 
 PYPROJECT = Path(__file__).resolve().parents[1] / "pyproject.toml"
+LOCKFILE = PYPROJECT.parent / "uv.lock"
+
+# The name that must NOT be a runtime dependency (E3/T-110b / F-AGT-01).
+HARNESS = "nexus-scholar-harness"
 
 # scholar-<name>[@ git+https://github.com/nexus-scholar-org/<repo>@<40-hex>]
 # with an optional PEP 508 extras suffix, e.g. scholar-pdf-kit[extract].
@@ -30,6 +43,7 @@ DIRECT_REF = re.compile(
 )
 
 # The canonical main SHAs recorded at E3/T-110 dispatch time.
+# nexus-scholar-harness is deliberately ABSENT: it is lazy-guarded, not declared.
 EXPECTED_SHA = {
     "scholar-protocol-kit": "4e10f25c25a1b150ce518348d211c7771683a9b7",
     "scholar-search-kit": "911d864fcb6a706d4c0339f80524a46f591e2cad",
@@ -38,7 +52,6 @@ EXPECTED_SHA = {
     "scholar-rag-kit": "d95469f6791c6cf6f608b5fdcf71483af45a3caa",
     "scholar-graph-kit": "4f0f4382ad4c940b2a3da838a12f1b47affd2b31",
     "scholar-verify-kit": "44a8d63cc0a11694bbcb7a355a53f73c3f93145c",
-    "nexus-scholar-harness": "ddcefe5ed3208c9b65a4d65616da8093b02110f5",
 }
 
 
@@ -95,6 +108,30 @@ def test_no_relative_editable_sibling_source_can_come_back() -> None:
     )
 
 
+def test_harness_is_not_a_runtime_dependency() -> None:
+    """The lazy-guard removed the need for a harness distribution.
+
+    ``server.py`` imports ``scholar_harness.recon`` / ``.gates`` only inside
+    ``_ensure_harness_recon_loaded()`` and ``scholar_harness.orchestrator`` only
+    function-locally, so ``import scholar_agent.server`` must work with no harness
+    installed. Re-declaring it would force every standalone consumer to pin the
+    whole monorepo for a feature the kit does not need to import.
+    """
+    deps = _load()["project"]["dependencies"]
+    declared = [d for d in deps if HARNESS in d]
+    assert not declared, (
+        f"{HARNESS} must not be a runtime dependency (lazy-guarded): {declared}"
+    )
+
+    extras = _load()["project"].get("optional-dependencies", {})
+    extra_hits = [d for group in extras.values() for d in group if HARNESS in d]
+    assert not extra_hits, f"{HARNESS} must not appear in any extra: {extra_hits}"
+
+    assert HARNESS not in LOCKFILE.read_text(encoding="utf-8"), (
+        f"{HARNESS} still present in uv.lock"
+    )
+
+
 def test_built_wheel_metadata_carries_the_direct_refs() -> None:
     wheels = sorted((PYPROJECT.parent / "dist").glob("*.whl"))
     if not wheels:
@@ -111,6 +148,13 @@ def test_built_wheel_metadata_carries_the_direct_refs() -> None:
         for line in archive.read(metadata_name).decode().splitlines()
         if line.startswith("Requires-Dist: ")
     ]
+
+    # The wheel must not drag the harness distribution in with it.
+    assert not [r for r in requires if HARNESS in r], (
+        f"{HARNESS} must not be a wheel Requires-Dist: "
+        f"{[r for r in requires if HARNESS in r]}"
+    )
+
     git_requires = [r for r in requires if "git+" in r]
     assert len(git_requires) == len(EXPECTED_SHA), (
         f"expected {len(EXPECTED_SHA)} git direct refs, got {git_requires}"

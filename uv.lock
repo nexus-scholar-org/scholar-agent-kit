@@ -1034,23 +1034,6 @@ wheels = [
 ]
 
 [[package]]
-name = "fastapi"
-version = "0.142.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "annotated-doc" },
-    { name = "opentelemetry-api" },
-    { name = "pydantic" },
-    { name = "starlette" },
-    { name = "typing-extensions" },
-    { name = "typing-inspection" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/56/4f/f7c30a73127e0a8bbffe788369b8359e530b01ae06e2757936fa35bc5e6d/fastapi-0.142.2.tar.gz", hash = "sha256:06366626f2e70576367714d9ab2fe8472e6c8456dba69b399f9f797ab5e92570", size = 466721, upload-time = "2026-09-30T09:51:11.277Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a0/b6/78aaf9141fb46742928c113f3cf6ef2259d538cb02b604b7656c1dc9883c/fastapi-0.142.2-py3-none-any.whl", hash = "sha256:bd5f4d81f1e93a88bcd77caf4dfe3c2dbffc3805407a0007e9a114c18b3a670b", size = 144409, upload-time = "2026-09-30T09:51:09.8Z" },
-]
-
-[[package]]
 name = "filelock"
 version = "3.32.4"
 source = { registry = "https://pypi.org/simple" }
@@ -2307,18 +2290,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/6a/51/63fe664f3908c97be9d2e4f1158eb633317598cfa6e1fc14af5383f17512/networkx-3.6.1.tar.gz", hash = "sha256:26b7c357accc0c8cde558ad486283728b65b6a95d85ee1cd66bafab4c8168509", size = 2517025, upload-time = "2025-12-08T17:02:39.908Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9e/c9/b2622292ea83fbb4ec318f5b9ab867d0a28ab43c5717bb85b0a5f6b3b0a4/networkx-3.6.1-py3-none-any.whl", hash = "sha256:d47fbf302e7d9cbbb9e2555a0d267983d2aa476bac30e90dfbe5669bd57f3762", size = 2068504, upload-time = "2025-12-08T17:02:38.159Z" },
-]
-
-[[package]]
-name = "nexus-scholar-harness"
-version = "1.0.0"
-source = { git = "https://github.com/nexus-scholar-org/nexus-scholar-harness?rev=ddcefe5ed3208c9b65a4d65616da8093b02110f5#ddcefe5ed3208c9b65a4d65616da8093b02110f5" }
-dependencies = [
-    { name = "fastapi" },
-    { name = "pydantic" },
-    { name = "rich" },
-    { name = "typer" },
-    { name = "uvicorn" },
 ]
 
 [[package]]
@@ -4304,7 +4275,6 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "mcp" },
-    { name = "nexus-scholar-harness" },
     { name = "scholar-bib-kit" },
     { name = "scholar-graph-kit" },
     { name = "scholar-pdf-kit", extra = ["extract"] },
@@ -4323,7 +4293,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "mcp", specifier = ">=2.1.1" },
-    { name = "nexus-scholar-harness", git = "https://github.com/nexus-scholar-org/nexus-scholar-harness?rev=ddcefe5ed3208c9b65a4d65616da8093b02110f5" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4.0" },
     { name = "scholar-bib-kit", git = "https://github.com/nexus-scholar-org/scholar-bib-kit?rev=0bf3cdd2d0ace6dc626f033871747a78681c6ddf" },

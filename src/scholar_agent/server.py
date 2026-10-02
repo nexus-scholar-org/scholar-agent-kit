@@ -140,6 +140,15 @@ from scholar_agent.capabilities import (
 # we resolve the harness ``src/`` directory from this file's location and
 # inject it onto ``sys.path`` as a thin, documented adapter seam.  An
 # optional ``NEXUS_HARNESS_SRC`` env var overrides discovery for odd layouts.
+#
+# E3/T-110b / F-AGT-01: this function MUST NOT raise. It is called at module
+# level, and ``nexus-scholar-harness`` is deliberately not a declared runtime
+# dependency (see the lazy-guard note in pyproject.toml), so on a standalone
+# wheel install the harness is genuinely absent. Raising here would make
+# ``import scholar_agent.server`` fail outright and defeat the whole point of
+# dropping the dependency. Returning "" simply means "nothing to inject": the
+# recon names stay None and the recon tools report a missing capability, which is
+# the documented fallback. The discovery order below is unchanged.
 def _harness_src() -> str:
     env_override = os.environ.get("NEXUS_HARNESS_SRC")
     if env_override:
@@ -156,11 +165,9 @@ def _harness_src() -> str:
         candidate = parent / "src" / "scholar_harness" / "recon" / "__init__.py"
         if candidate.is_file():
             return str(parent / "src")
-    raise ImportError(
-        "scholar_harness.recon not found under any ancestor of "
-        + str(here)
-        + "; set NEXUS_HARNESS_SRC to the harness src/ directory"
-    )
+    # Standalone install: the harness is not present and is not a declared
+    # dependency. Nothing to inject; recon stays lazily unavailable.
+    return ""
 
 
 _HARNESS_SRC = _harness_src()
