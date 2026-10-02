@@ -42,15 +42,18 @@ DIRECT_REF = re.compile(
     r"^[a-z0-9-]+(\[[a-z0-9,.-]+\])? @ git\+https://github\.com/nexus-scholar-org/[a-z0-9-]+@[0-9a-f]{40}$"
 )
 
-# The canonical main SHAs recorded at E3/T-110 dispatch time.
+# The canonical main SHAs these siblings are pinned to. Tracked to the merged
+# canonical mains after bib#1 / pdf#4 / graph#1 / rag#11 merged (T-110-REPIN);
+# the structural DIRECT_REF regex and the full-40-hex requirement are unchanged,
+# so this mirror tracks the pins rather than relaxing what the guard enforces.
 # nexus-scholar-harness is deliberately ABSENT: it is lazy-guarded, not declared.
 EXPECTED_SHA = {
     "scholar-protocol-kit": "4e10f25c25a1b150ce518348d211c7771683a9b7",
     "scholar-search-kit": "911d864fcb6a706d4c0339f80524a46f591e2cad",
-    "scholar-bib-kit": "0bf3cdd2d0ace6dc626f033871747a78681c6ddf",
-    "scholar-pdf-kit": "0430ee40c491edbb055af4ab068637275aada476",
-    "scholar-rag-kit": "d95469f6791c6cf6f608b5fdcf71483af45a3caa",
-    "scholar-graph-kit": "4f0f4382ad4c940b2a3da838a12f1b47affd2b31",
+    "scholar-bib-kit": "fbdd38ba25301e613621f18119623f04d2673dca",
+    "scholar-pdf-kit": "3c024c37071b49265cfea6e713c1c9065e2a2cc0",
+    "scholar-rag-kit": "033191eff967abf19023b258539c9a1422c8747f",
+    "scholar-graph-kit": "646b84cec215ebd9b7b449448bca879492e78492",
     "scholar-verify-kit": "44a8d63cc0a11694bbcb7a355a53f73c3f93145c",
 }
 
