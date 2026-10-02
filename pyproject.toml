@@ -1,25 +1,65 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "scholar-agent-kit"
 version = "0.1.0"
 description = "MCP Server exposing all Nexus Scholar tools to AI Agents"
 requires-python = ">=3.11"
 dependencies = [
-    "mcp",
-    "scholar-protocol-kit",
-    "scholar-search-kit",
-    "scholar-bib-kit",
-    "scholar-pdf-kit[extract]",
-    "scholar-rag-kit",
-    "scholar-graph-kit"
+    "mcp>=2.1.1",
+    # Sibling Nexus Scholar packages are declared as PEP 508 direct git
+    # references pinned to canonical main SHAs. None of them are published on
+    # PyPI, so a bare name cannot be resolved from the public index by a
+    # standalone `uv pip install scholar_agent`. The direct ref is the
+    # standalone carrier and carries the requirement into the wheel METADATA as
+    # `git+https://...@<sha>`.
+    #
+    # scholar-verify-kit and nexus-scholar-harness are required by
+    # scholar_agent/server.py, which imports them at module level. They were
+    # previously reachable only through the harness monorepo sys.path seam and
+    # were NOT declared at all (E3/T-110 import inventory).
+    "scholar-protocol-kit @ git+https://github.com/nexus-scholar-org/scholar-protocol-kit@4e10f25c25a1b150ce518348d211c7771683a9b7",
+    "scholar-search-kit @ git+https://github.com/nexus-scholar-org/scholar-search-kit@911d864fcb6a706d4c0339f80524a46f591e2cad",
+    "scholar-bib-kit @ git+https://github.com/nexus-scholar-org/scholar-bib-kit@0bf3cdd2d0ace6dc626f033871747a78681c6ddf",
+    "scholar-pdf-kit[extract] @ git+https://github.com/nexus-scholar-org/scholar-pdf-kit@0430ee40c491edbb055af4ab068637275aada476",
+    "scholar-rag-kit @ git+https://github.com/nexus-scholar-org/scholar-rag-kit@d95469f6791c6cf6f608b5fdcf71483af45a3caa",
+    "scholar-graph-kit @ git+https://github.com/nexus-scholar-org/scholar-graph-kit@4f0f4382ad4c940b2a3da838a12f1b47affd2b31",
+    "scholar-verify-kit @ git+https://github.com/nexus-scholar-org/scholar-verify-kit@44a8d63cc0a11694bbcb7a355a53f73c3f93145c",
+    # scholar_agent/server.py imports scholar_harness.recon and
+    # scholar_harness.recon.gates at module level; its own _harness_src() helper
+    # documents the installed-package layout ("scholar_harness.recon imports
+    # normally, nothing to inject"). Without this declaration `import
+    # scholar_agent.server` cannot succeed outside the harness monorepo.
+    "nexus-scholar-harness @ git+https://github.com/nexus-scholar-org/nexus-scholar-harness@ddcefe5ed3208c9b65a4d65616da8093b02110f5",
 ]
 
-[tool.uv.sources]
-scholar-protocol-kit = { path = "../scholar-protocol-kit", editable = true }
-scholar-search-kit = { path = "../scholar-search-kit", editable = true }
-scholar-bib-kit = { path = "../scholar-bib-kit", editable = true }
-scholar-pdf-kit = { path = "../scholar-pdf-kit", editable = true }
-scholar-rag-kit = { path = "../scholar-rag-kit", editable = true }
-scholar-graph-kit = { path = "../scholar-graph-kit", editable = true }
+# Inventory-driven: the test suite imports `pytest`, which is not a runtime
+# dependency. `ruff` is the repo lint gate (uv run ruff check src tests).
+# No `async def test_*` functions exist, so pytest-asyncio is not required.
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.4.0",
+]
 
 [project.scripts]
 scholar-agent = "scholar_agent.server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/scholar_agent"]
+
+# hatchling refuses PEP 508 direct references unless this is set. It is required
+# here because no sibling kit is on PyPI, so the only installable standalone
+# declaration is a git direct reference. (scholar-pdf-kit already uses the same
+# opt-in.) Note this makes the wheel intentionally non-uploadable to PyPI, which
+# is correct: these kits are installed from their canonical git repositories.
+[tool.hatch.metadata]
+allow-direct-references = true
+
+# E3/T-110: the relative editable sibling sources that used to live here were
+# removed. They only resolved inside the harness monorepo (or a sibling checkout
+# on disk), so they made the built wheel uninstallable anywhere else. The
+# `git+https://...@<sha>` direct references in [project.dependencies] are now
+# the single standalone carrier. No other [tool.uv.sources] entries exist.
