@@ -3,12 +3,40 @@
 from __future__ import annotations
 
 import json
+from importlib.util import find_spec
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from scholar_agent.server import nexus_pipeline_run, mcp
+
+
+def _harness_orchestrator_available() -> bool:
+    """True when the harness monorepo seam ``scholar_harness.orchestrator`` exists.
+
+    ``nexus_pipeline_run`` imports ``ResearchOrchestrator`` *inside* the function
+    body, so importing ``scholar_agent.server`` never needs the harness. Only the
+    four tests below patch ``scholar_harness.orchestrator.ResearchOrchestrator``
+    and therefore exercise harness-monorepo integration behaviour that does not
+    exist in a standalone wheel install (E3/T-110b). Those four skip when the
+    seam is absent; the registry/error-path tests above do not touch the seam and
+    keep running everywhere.
+    """
+    try:
+        return find_spec("scholar_harness.orchestrator") is not None
+    except (ImportError, ValueError):  # pragma: no cover - defensive
+        return False
+
+
+requires_harness_seam = pytest.mark.skipif(
+    not _harness_orchestrator_available(),
+    reason=(
+        "requires the scholar_harness monorepo seam "
+        "(scholar_harness.orchestrator.ResearchOrchestrator); "
+        "skipped in standalone installs where scholar_harness is absent"
+    ),
+)
 
 
 # ---------------------------------------------------------------------------
@@ -57,6 +85,7 @@ def test_pipeline_missing_workspace():
 # ---------------------------------------------------------------------------
 
 
+@requires_harness_seam
 def test_pipeline_happy_path_mock(tmp_path, workspace_dir):
     """Mock ResearchOrchestrator returns success; verify JSON response."""
     mock_orch = MagicMock()
@@ -84,6 +113,7 @@ def test_pipeline_happy_path_mock(tmp_path, workspace_dir):
 # ---------------------------------------------------------------------------
 
 
+@requires_harness_seam
 def test_pipeline_skip_stages(tmp_path, workspace_dir):
     """Pass skip_stages='discovery,dedup'; verify those keys are removed."""
     mock_orch = MagicMock()
@@ -114,6 +144,7 @@ def test_pipeline_skip_stages(tmp_path, workspace_dir):
 # ---------------------------------------------------------------------------
 
 
+@requires_harness_seam
 def test_pipeline_orchestrator_error(tmp_path, workspace_dir):
     """When orchestrator raises, verify error JSON is returned."""
     mock_orch = MagicMock()
@@ -136,6 +167,7 @@ def test_pipeline_orchestrator_error(tmp_path, workspace_dir):
 # ---------------------------------------------------------------------------
 
 
+@requires_harness_seam
 def test_pipeline_with_query(tmp_path, workspace_dir):
     """Pass a query parameter; verify orchestrator is called with protocol_path."""
     mock_orch = MagicMock()

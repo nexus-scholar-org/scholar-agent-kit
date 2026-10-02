@@ -45,6 +45,7 @@ import builtins
 import contextlib
 import dis
 import importlib
+import importlib.util
 import inspect
 import json
 import threading
@@ -67,6 +68,54 @@ from scholar_agent.capabilities import (
     unsupported_capability_envelope_json,
 )
 from scholar_agent.server import main, mcp, nexus_pdf_acquire
+
+
+def _contract_models_importable() -> bool:
+    """True when the harness Contract v1 models can actually be imported.
+
+    This test validates the rejection envelope against the *frozen* Contract v1
+    error shape, which lives in the harness monorepo
+    (``scholar_harness.contracts.models``). Importing that package pulls
+    ``fastapi`` transitively via ``scholar_harness/console/api/audit.py``.
+
+    Both symbols are probed, because either one alone can be missing: a
+    standalone wheel install has no ``scholar_harness`` at all, while the harness
+    monorepo launch path (``uv run --directory tools/scholar-agent-kit``) injects
+    ``harness src/`` onto ``sys.path`` and so finds ``scholar_harness`` but not
+    necessarily ``fastapi`` (a pre-existing dev-tooling imbalance in the
+    monorepo, not something this kit's runtime contract guarantees).
+
+    The envelope under test is produced entirely by ``nexus_pdf_acquire`` in this
+    kit, so the rest of this module -- and its 23 sibling tests -- remain fully
+    exercised standalone; only this cross-repo shape-compatibility check skips.
+    """
+    try:
+        if importlib.util.find_spec("fastapi") is None:
+            return False
+        if importlib.util.find_spec("scholar_harness.contracts.models") is None:
+            return False
+    except (ImportError, ValueError):  # pragma: no cover - defensive
+        return False
+    # A third failure mode: the spec resolves but importing the chain still raises
+    # (e.g. a sibling import inside scholar_harness.contracts that is absent).
+    # Probed at collection time, so only genuine import failures are tolerated --
+    # an assertion error raised later inside the test is never swallowed.
+    try:
+        importlib.import_module("scholar_harness.contracts.models")
+    except ImportError:  # pragma: no cover - import-chain dependent
+        return False
+    return True
+
+
+requires_contract_models = pytest.mark.skipif(
+    not _contract_models_importable(),
+    reason=(
+        "requires the harness Contract v1 models seam "
+        "(scholar_harness.contracts.models, and the fastapi it imports "
+        "transitively); skipped in standalone installs where scholar_harness "
+        "is absent"
+    ),
+)
 
 # --------------------------------------------------------------------------- #
 # Module-wide CWD sandbox
@@ -691,6 +740,7 @@ def test_e1_neg_047_rejection_message_states_the_pre_io_guarantee():
     assert "not a parity claim" in lowered
 
 
+@requires_contract_models
 def test_e1_neg_047_envelope_error_object_is_contract_error_shape_compatible():
     """The frozen Contract v1 error shape accepts this code: no contract change."""
     from scholar_harness.contracts.models import ContractError, OperationStatus
