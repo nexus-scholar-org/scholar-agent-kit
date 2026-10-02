@@ -527,7 +527,11 @@ def test_e2_neg_019_registry_declares_pdf_extraction_mcp_unsupported():
     assert declaration.name == "pdf_extraction"
     assert declaration.mcp_supported is False
     assert "pdf_extraction" in caps.CAPABILITIES
-    assert sorted(caps.CAPABILITIES) == ["pdf_acquisition", "pdf_extraction"]
+    assert sorted(caps.CAPABILITIES) == [
+        "pdf_acquisition",
+        "pdf_extraction",
+        "rag_indexing",
+    ]
 
 
 def test_e2_neg_019_registry_owning_surface_is_api_and_cli_owned_by_pdf_kit():

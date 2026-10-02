@@ -1,13 +1,16 @@
 """Declared cross-surface capability registry for the Nexus Scholar MCP server.
 
-This module is the **declaration half** of the two declared-unsupported MCP
+This module is the **declaration half** of the declared-unsupported MCP
 boundaries required by WP01-E1 (Packet E1 -- Acquired-Document Boundary)
-section 4.7 / E1-016 and WP01-E2 (Packet E2 -- Extracted-Text Handoff)
-section 9 / E2-013. It contains no PDF domain logic whatsoever: no download,
-ingest, validation, extraction, storage, or manifest construction. The
-canonical PDF kit (``nexus-scholar-org/scholar-pdf-kit``) remains the
-domain-service owner, and API/CLI are the supported E1 acquisition and E2
-extraction surfaces.
+section 4.7 / E1-016, WP01-E2 (Packet E2 -- Extracted-Text Handoff)
+section 9 / E2-013, and WP01-E3 (Packet E3 -- implementation handoff)
+section 9.1 / E3-008. It contains no PDF or RAG domain logic whatsoever: no
+download, ingest, validation, extraction, storage, chunking, indexing, or
+manifest construction. The canonical PDF kit
+(``nexus-scholar-org/scholar-pdf-kit``) remains the owner of the acquisition
+and extraction domain services, and the canonical RAG kit
+(``nexus-scholar-org/scholar-rag-kit``) remains the owner of the indexing
+domain service; API/CLI are the supported surfaces in each case.
 
 Why a declaration instead of a silent omission
 ----------------------------------------------
@@ -44,6 +47,53 @@ services in the same canonical owner:
 * rejection envelope -> the same operation-envelope vocabulary with
   ``operation="extract_pdf"`` and ``status="FAILED"``.
 
+The E3 declared facts (RAG indexing, Packet E3 section 9.1)
+----------------------------------------------------------
+E3 adds a **third, separate** declaration for the indexing capability. It is a
+different domain service in a different canonical owner, so it neither broadens
+nor re-interprets ``pdf_acquisition`` or ``pdf_extraction``:
+
+* capability ``rag_indexing`` -> ``mcp_supported=False``;
+* owning surfaces -> ``("API", "CLI")`` -- and specifically *not* "the legacy
+  ``ScholarIndexer``": the supported surfaces are the ``T-90`` shared service,
+  reached through the Python API (``scholar_rag.index_service``) and the
+  ``scholar-rag index`` CLI;
+* canonical owner -> ``nexus-scholar-org/scholar-rag-kit``;
+* stable rejection code -> ``UNSUPPORTED_CAPABILITY`` (the *same* constant
+  again: the boundary means "this surface does not serve this capability");
+* rejection envelope -> the same operation-envelope vocabulary with
+  ``operation="rag_index"`` and ``status="FAILED"``.
+
+Why indexing is declared rather than served
+-------------------------------------------
+The legacy ``nexus_rag_index`` tool looked functional and was not
+authoritative, which is the specific failure mode ``§9.1`` forbids preserving:
+
+* it **hard-codes** ``db_path="./chroma_db"``, so the store location is derived
+  from the server process' working directory rather than stated by the caller;
+* it accepts an optional ``workspace_id`` but the underlying indexer silently
+  substitutes ``project.json``'s ``project_id``/``title`` when it is absent, so
+  the identity is never *authoritative* -- the caller cannot assert a verified
+  workspace, cannot pass the accepted parent, cannot pass the embedder
+  identity, and cannot express a ``PARTIAL`` result;
+* it returns free-text success/failure strings, so it has no typed result and
+  no typed error envelope to compare against API/CLI.
+
+That combination is a **silent substitution**, and it is what ``E3-NEG-040`` /
+``E3-NEG-041`` are about: a client must not be able to discover a different
+answer for the same request by switching transport, and the MCP limb must not
+return a status a caller could mistake for the authoritative result. Since the
+authoritative ``T-90`` service exposes none of ``db_path`` substitution, free
+text, or implicit identity, partial MCP parity was not available to preserve;
+the surface is therefore *declared* refused rather than half-served. Lifting
+this boundary is a follow-up change to Packet E3 ``§9`` itself, not a local
+tweak.
+
+No indexing implementation is added, moved, or reimplemented here. This module
+still contains no RAG, PDF, or domain logic: the rejection is built by the same
+two generic pure builders that serve E1 and E2, so agent-kit gains a
+*declaration*, never a second indexing path.
+
 Why extraction is declared rather than served
 ---------------------------------------------
 The MCP surface does have a raw-path extraction tool (``nexus_extract_pdf``).
@@ -78,15 +128,17 @@ Envelope contract notes (deliberate, and asserted by the conformance suite)
 Purity / zero-I/O guarantee
 ---------------------------
 ``unsupported_capability_envelope`` and ``unsupported_capability_envelope_json``
-are the single, generic pair of pure builders behind *both* declarations. They
+are the single, generic pair of pure builders behind *every* declaration. They
 read an in-memory immutable mapping and build a fresh ``dict``/``str``. They
 perform no engine import, no provider transport, no temporary or final file
-creation, no manifest or sidecar construction, and no audit append. This is
-what makes the zero-I/O property of the rejection path structurally provable
-rather than merely asserted (see ``tests/test_mcp_acquisition_capability.py``
-and ``tests/test_mcp_extraction_capability.py``). No capability-specific
-builder was added, and none may be: one generic pure path is what keeps
-"zero I/O" a property of the code rather than of each call site's discipline.
+creation, no manifest or sidecar construction, no store opening, and no audit
+append. This is what makes the zero-I/O property of the rejection path
+structurally provable rather than merely asserted (see
+``tests/test_mcp_acquisition_capability.py``,
+``tests/test_mcp_extraction_capability.py``, and
+``tests/test_mcp_indexing_boundary.py``). No capability-specific builder was
+added, and none may be: one generic pure path is what keeps "zero I/O" a
+property of the code rather than of each call site's discipline.
 """
 
 from __future__ import annotations
@@ -110,10 +162,16 @@ PDF_ACQUISITION = "pdf_acquisition"
 #: broaden, narrow, or re-interpret the E1 declaration to cover extraction.
 PDF_EXTRACTION = "pdf_extraction"
 
+#: E3's capability name. A third distinct registry key: indexing a workspace
+#: into a vector store is a different domain service (and a different canonical
+#: owner) from both PDF capabilities, so E3 must not broaden or re-interpret
+#: either of them to cover indexing.
+RAG_INDEXING = "rag_indexing"
+
 #: Stable, non-retryable rejection code. Not a planner ``BLOCKED_*`` label and
 #: not a Contract v1 ``ErrorCode`` member; the frozen contract-error schema
-#: permits any string code, so this needs no contract change. Shared by E1 and
-#: E2: the meaning is "this surface does not serve this capability", not "a
+#: permits any string code, so this needs no contract change. Shared by E1, E2,
+#: and E3: the meaning is "this surface does not serve this capability", not "a
 #: different kind of failure", so a second code would only fork the vocabulary.
 UNSUPPORTED_CAPABILITY = "UNSUPPORTED_CAPABILITY"
 
@@ -124,6 +182,11 @@ ACQUIRE_PDF_OPERATION = "acquire_pdf"
 #: from :data:`ACQUIRE_PDF_OPERATION` so the two declared boundaries remain
 #: distinguishable from the envelope alone.
 EXTRACT_PDF_OPERATION = "extract_pdf"
+
+#: Operation name carried by the E3 rejection envelope. Distinct from both PDF
+#: operations above, so a client can tell *which* boundary refused it from the
+#: envelope alone, without parsing prose.
+RAG_INDEX_OPERATION = "rag_index"
 
 #: Surfaces that own (and support) PDF acquisition in E1.
 SUPPORTED_OWNING_SURFACES = ("API", "CLI")
@@ -138,12 +201,21 @@ ACQUISITION_OWNER = "nexus-scholar-org/scholar-pdf-kit"
 #: as acquisition, on purpose: one domain owner, two capabilities.
 EXTRACTION_OWNER = "nexus-scholar-org/scholar-pdf-kit"
 
+#: Canonical owner of the E3 indexing domain service. A different canonical kit
+#: from the two PDF capabilities above: the PDF kit owns bytes and fulltext, the
+#: RAG kit owns the vector store and its canonical identities.
+RAG_OWNER = "nexus-scholar-org/scholar-rag-kit"
+
 #: Normative reference for the declaration (harness-side architecture doc).
 E1_REFERENCE = "docs/architecture/wp01_packet_e1_acquired_document_handoff.md#4.7"
 
 #: Normative reference for the E2 declaration (Packet E2 section 9 is the MCP
 #: surface boundary this declaration implements).
 E2_REFERENCE = "docs/architecture/wp01_packet_e2_extracted_text_handoff.md#9"
+
+#: Normative reference for the E3 declaration. Packet E3 section 9.1 is the
+#: decision this implements: "declared unsupported, with a typed refusal".
+E3_REFERENCE = "docs/architecture/wp01_packet_e3_implementation_handoff.md#9.1"
 
 #: The E1 alternatives a caller must be redirected to, named verbatim so the
 #: rejection message is actionable rather than a bare refusal.
@@ -169,6 +241,41 @@ EXTRACT_API_ALTERNATIVE = (
     "(parent-bound extraction request/outcome service)"
 )
 
+#: The authoritative E3 indexing alternatives, named verbatim. Both are the
+#: shared ``T-90`` service, which is the *only* supported way to build the E3
+#: index; they are deliberately **not** the legacy ``ScholarIndexer`` /
+#: ``scholar_rag.indexer`` helper, because that helper is exactly what Packet E3
+#: section 9.1 found unable to carry an authoritative request (implicit
+#: workspace substitution, no accepted parent, no ``PARTIAL`` result, free
+#: text). Redirecting a refusal there would re-create the boundary this
+#: declaration exists to expose.
+#:
+#: The example below is transcribed from the canonical T-90
+#: ``scholar_rag.cli index`` signature and is executable as written: one
+#: required positional ``docs_path`` plus the ten required options
+#: (``--parent-view``, ``--journal``, ``--workspace-root``, ``--run-id``,
+#: ``--created-at``, ``--producer-version``, ``--producer-commit``,
+#: ``--embedder-provider``, ``--embedder-model``, ``--embedder-dimension``);
+#: the remaining options are left at their documented defaults so the message
+#: stays bounded. It previously named an audit logger option, which the rag-kit
+#: ``index`` command has never had, and passed a workspace where a
+#: ``docs_path`` is required. An alternative is only actionable if it can be
+#: pasted and run, so ``test_e3_neg_041_advertised_cli_matches_canonical_index_signature``
+#: re-derives the real flag set from that command and rejects any invented
+#: token -- this constant may not drift away from the command it points at.
+INDEX_CLI_ALTERNATIVE = (
+    "`scholar-rag index` CLI (e.g. `uv run scholar-rag index <docs_path> "
+    "--parent-view <parent_view.json> --journal <journal.jsonl> "
+    "--workspace-root <workspace-root> --run-id <run-id> "
+    "--created-at <rfc3339-timestamp> --producer-version <version> "
+    "--producer-commit <40-hex-commit> --embedder-provider <provider> "
+    "--embedder-model <model> --embedder-dimension <int>`)"
+)
+INDEX_API_ALTERNATIVE = (
+    "Python `scholar_rag.index_service` API "
+    "(`index_workspace(IndexServiceRequest) -> IndexServiceResult`)"
+)
+
 ACQUISITION_REJECTION_MESSAGE = (
     "E1 PDF acquisition is not available through MCP: capability "
     "'pdf_acquisition' is declared unsupported on the MCP surface, and this "
@@ -192,6 +299,22 @@ EXTRACTION_REJECTION_MESSAGE = (
     "parity between MCP output and the authoritative PDF-kit result, and no "
     "metadata, identity, or status may be derived from a filename, URL, or a "
     "regex over a path."
+)
+
+INDEXING_REJECTION_MESSAGE = (
+    "E3 RAG indexing is not available through MCP: capability 'rag_indexing' is "
+    "declared unsupported on the MCP surface, and this request was rejected "
+    "before any store was opened, any directory was read, or any filesystem or "
+    "audit I/O occurred. Use the owning scholar-rag-kit surfaces instead -- the "
+    f"{INDEX_CLI_ALTERNATIVE} or the {INDEX_API_ALTERNATIVE}. API and CLI are "
+    "the supported E3 indexing surfaces and both call the same T-90 shared "
+    "service; this is a declared unsupported difference, not a parity claim. "
+    "The retired MCP tool was non-authoritative: it hard-coded a "
+    "working-directory-relative store path, substituted workspace identity "
+    "silently when none was given, and returned free text, so it could not "
+    "carry an accepted parent, an embedder identity, or a PARTIAL result. No "
+    "store path, workspace identity, accepted parent, or journal is derived or "
+    "echoed by this rejection."
 )
 
 
@@ -286,11 +409,30 @@ PDF_EXTRACTION_DECLARATION = CapabilityDeclaration(
 
 #: The registry. Immutable: declarations are observable facts, not mutable
 #: configuration, and must not be flipped at runtime. E2 adds a second key and
-#: changes nothing about the first one (E2-NEG-020).
+#: changes nothing about the first one (E2-NEG-020); E3 adds a third and changes
+#: nothing about either of those.
+RAG_INDEXING_DECLARATION = CapabilityDeclaration(
+    name=RAG_INDEXING,
+    summary=(
+        "Deterministic indexing boundary: build the canonical vector index for "
+        "a workspace behind an accepted parent, with canonical identities and "
+        "an explicit journal (T-90 shared service)."
+    ),
+    owner=RAG_OWNER,
+    owning_surfaces=SUPPORTED_OWNING_SURFACES,
+    mcp_supported=False,
+    rejection_code=UNSUPPORTED_CAPABILITY,
+    rejection_operation=RAG_INDEX_OPERATION,
+    rejection_message=INDEXING_REJECTION_MESSAGE,
+    alternatives=(INDEX_CLI_ALTERNATIVE, INDEX_API_ALTERNATIVE),
+    reference=E3_REFERENCE,
+)
+
 CAPABILITIES: Mapping[str, CapabilityDeclaration] = MappingProxyType(
     {
         PDF_ACQUISITION: PDF_ACQUISITION_DECLARATION,
         PDF_EXTRACTION: PDF_EXTRACTION_DECLARATION,
+        RAG_INDEXING: RAG_INDEXING_DECLARATION,
     }
 )
 
