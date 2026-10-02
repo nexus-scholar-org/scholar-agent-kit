@@ -32,7 +32,6 @@ dependencies = [
     # documents the installed-package layout ("scholar_harness.recon imports
     # normally, nothing to inject"). Without this declaration `import
     # scholar_agent.server` cannot succeed outside the harness monorepo.
-    "nexus-scholar-harness @ git+https://github.com/nexus-scholar-org/nexus-scholar-harness@ddcefe5ed3208c9b65a4d65616da8093b02110f5",
 ]
 
 # Inventory-driven: the test suite imports `pytest`, which is not a runtime

@@ -175,21 +175,55 @@ if _HARNESS_SRC and _HARNESS_SRC not in sys.path:
 # instead of the kit SearchEngine (mirrors ReconEngine(search_fn=...)).
 RECON_SEARCH_FN = None
 
-from scholar_harness.recon import (
-    DEFAULT_LEXICON,
-    DomainLexicon,
-    ReconEngine,
-    canonical_recon_root,
-    distill_pool,
-    execute_followups,
-    merge_lexicons,
-)
+# Lazy-load harness recon to avoid hard runtime dependency (T-110b/F-AGT-01).
+# Imported on-demand by recon tools and paths that actually use them.
+DEFAULT_LEXICON = None  # type: ignore[assignment]
+DomainLexicon = None  # type: ignore[assignment]
+ReconEngine = None  # type: ignore[assignment]
+canonical_recon_root = None  # type: ignore[assignment]
+distill_pool = None  # type: ignore[assignment]
+execute_followups = None  # type: ignore[assignment]
+merge_lexicons = None  # type: ignore[assignment]
+compute_pool_sufficiency = None  # type: ignore[assignment]
+compute_topic_purity = None  # type: ignore[assignment]
+RECON_CACHE_ROOT = None
 
-RECON_CACHE_ROOT = canonical_recon_root()
-from scholar_harness.recon.gates import (
-    compute_pool_sufficiency,
-    compute_topic_purity,
-)
+_harness_recon_loaded = False
+
+
+def _ensure_harness_recon_loaded() -> None:
+    global \
+        _harness_recon_loaded, \
+        DEFAULT_LEXICON, \
+        DomainLexicon, \
+        ReconEngine, \
+        canonical_recon_root, \
+        distill_pool, \
+        execute_followups, \
+        merge_lexicons, \
+        RECON_CACHE_ROOT, \
+        compute_pool_sufficiency, \
+        compute_topic_purity
+    if _harness_recon_loaded:
+        return
+    try:
+        from scholar_harness import recon as _recon
+        from scholar_harness.recon import gates as _recon_gates
+
+        DEFAULT_LEXICON = _recon.DEFAULT_LEXICON
+        DomainLexicon = _recon.DomainLexicon
+        ReconEngine = _recon.ReconEngine
+        canonical_recon_root = _recon.canonical_recon_root
+        distill_pool = _recon.distill_pool
+        execute_followups = _recon.execute_followups
+        merge_lexicons = _recon.merge_lexicons
+        RECON_CACHE_ROOT = canonical_recon_root()
+        compute_pool_sufficiency = _recon_gates.compute_pool_sufficiency
+        compute_topic_purity = _recon_gates.compute_topic_purity
+        _harness_recon_loaded = True
+    except Exception:
+        _harness_recon_loaded = True
+
 
 mcp = MCPServer("ScholarAgentKit")
 
@@ -597,7 +631,7 @@ def nexus_pipeline_run(
         )
 
     try:
-        from scholar_harness.orchestrator import ResearchOrchestrator
+        from scholar_harness.orchestrator import ResearchOrchestrator  # type: ignore
 
         skip: set[str] = set()
         if skip_stages:
