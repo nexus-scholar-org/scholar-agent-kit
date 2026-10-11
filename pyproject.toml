@@ -23,11 +23,11 @@ dependencies = [
     #
     # Every ref below corresponds to a MODULE-LEVEL import in
     # scholar_agent/server.py. scholar-verify-kit is the one that was previously
-    # reachable only through the harness monorepo sys.path seam and was NOT
+    # reachable only through the harness monorepo adapter seam and was NOT
     # declared at all (E3/T-110 import inventory); it is declared here.
     #
     # nexus-scholar-harness is deliberately NOT in this list. server.py imports
-    # scholar_harness.recon and scholar_harness.recon.gates only INSIDE
+    # scholar_harness.recon.adapter and scholar_harness.recon.lexicon only INSIDE
     # _ensure_harness_recon_loaded(); at module level those names are bound to
     # None and rebound on first use. The harness is not a pip-installable
     # standalone distribution, so declaring it here would have forced every
@@ -41,16 +41,14 @@ dependencies = [
     "scholar-graph-kit @ git+https://github.com/nexus-scholar-org/scholar-graph-kit@646b84cec215ebd9b7b449448bca879492e78492",
     "scholar-verify-kit @ git+https://github.com/nexus-scholar-org/scholar-verify-kit@44a8d63cc0a11694bbcb7a355a53f73c3f93145c",
     # LAZY-GUARDED, NOT A RUNTIME DEPENDENCY (E3/T-110b / F-AGT-01).
-    # scholar_harness.recon / scholar_harness.recon.gates are imported INSIDE
-    # _ensure_harness_recon_loaded() (server.py:194-225), which the recon tools
-    # call on demand. At module level DEFAULT_LEXICON, DomainLexicon,
-    # ReconEngine, canonical_recon_root, distill_pool, execute_followups,
-    # merge_lexicons, compute_pool_sufficiency, compute_topic_purity and
-    # RECON_CACHE_ROOT are all None until that function runs successfully.
+    # scholar_harness.recon.adapter / scholar_harness.recon.lexicon are imported
+    # INSIDE _ensure_harness_recon_loaded(), which the recon tools call on
+    # demand. At module level _recon_adapter, DomainLexicon and RECON_CACHE_ROOT
+    # are all None until that function runs successfully.
     # scholar_harness.orchestrator is likewise imported function-locally inside
-    # nexus_pipeline_run (server.py:634). Consequently the recon/MCP surface
-    # stays live inside the harness monorepo, where _harness_src() injects
-    # <repo>/src onto sys.path, while the built wheel installs and imports
+    # nexus_pipeline_run. Consequently the recon/MCP surface
+    # stays live inside the harness monorepo, where the adapter is importable,
+    # while the built wheel installs and imports
     # standalone with no harness distribution present. Therefore
     # nexus-scholar-harness must NOT appear in this dependency list or in
     # uv.lock; this comment records that decision so it is not re-added.

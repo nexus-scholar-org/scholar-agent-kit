@@ -8,11 +8,12 @@ even though ``scholar_agent/server.py`` imported both at module level.
 
 E3/T-110b / F-AGT-01 changed the second half of that: ``nexus-scholar-harness``
 is no longer a runtime dependency at all. ``server.py`` now imports
-``scholar_harness.recon`` and ``scholar_harness.recon.gates`` only INSIDE
-``_ensure_harness_recon_loaded()``, so the recon names are module-level ``None``
-until that function runs, and ``scholar_harness.orchestrator`` is imported
-function-locally. The harness is therefore NOT declared, and this module guards
-that absence explicitly -- see ``test_harness_is_not_a_runtime_dependency``.
+``scholar_harness.recon.adapter`` and ``scholar_harness.recon.lexicon`` only
+INSIDE ``_ensure_harness_recon_loaded()``, so the adapter names are
+module-level ``None`` until that function runs, and
+``scholar_harness.orchestrator`` is imported function-locally. The harness is
+therefore NOT declared, and this module guards that absence explicitly -- see
+``test_harness_is_not_a_runtime_dependency``.
 
 This test locks in the fix: the build backend and wheel package are declared,
 every declared sibling is a PEP 508 direct git reference pinned to a full 40-hex
@@ -114,7 +115,8 @@ def test_no_relative_editable_sibling_source_can_come_back() -> None:
 def test_harness_is_not_a_runtime_dependency() -> None:
     """The lazy-guard removed the need for a harness distribution.
 
-    ``server.py`` imports ``scholar_harness.recon`` / ``.gates`` only inside
+    ``server.py`` imports ``scholar_harness.recon.adapter`` /
+    ``scholar_harness.recon.lexicon`` only inside
     ``_ensure_harness_recon_loaded()`` and ``scholar_harness.orchestrator`` only
     function-locally, so ``import scholar_agent.server`` must work with no harness
     installed. Re-declaring it would force every standalone consumer to pin the
