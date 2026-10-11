@@ -3,9 +3,9 @@
 Since M0.5 (specs/exploratory-grounding-agent/09_mcp_integration.md) the
 suite also exposes three ``recon_*`` tools -- ``recon_probe`` /
 ``recon_distill`` / ``recon_delta`` -- that drive the harness exploratory-recon
-layers (``scholar_harness.recon``) with FAIR session memory.  See the "Import
-strategy (Option B)" note next to ``_harness_src`` for how this kit resolves
-the harness package at runtime without vendoring any recon code.
+layers (``scholar_harness.recon.adapter``) with FAIR session memory.  See the
+"Adapter seam" note below for how this kit binds the harness adapter at
+runtime without vendoring any recon code.
 
 Declared-unsupported capabilities (WP01-E1)
 ------------------------------------------
@@ -41,11 +41,9 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import importlib.util
 import json
 import os
 import re
-import sys
 import time
 import uuid
 from dataclasses import asdict
@@ -131,105 +129,59 @@ from scholar_agent.capabilities import (
 
 # Recon (M0.5) imports -- adapter seam -- do not move above the seam.
 # ---------------------------------------------------------------------------- #
-# Import strategy (Option B, chosen after verifying mcp_config.json): the
-# server is launched as ``uv run --directory tools/scholar-agent-kit
-# scholar-agent``; that runs the kit-LOCAL venv (tools/scholar-agent-kit/.venv)
-# with CWD tools/scholar-agent-kit, and ``scholar_harness`` is NOT installed
-# there (empirically verified: ModuleNotFoundError under that venv).  Rather
-# than changing the launch config or copying the recon package into this kit,
-# we resolve the harness ``src/`` directory from this file's location and
-# inject it onto ``sys.path`` as a thin, documented adapter seam.  An
-# optional ``NEXUS_HARNESS_SRC`` env var overrides discovery for odd layouts.
+# Adapter seam: the recon tools drive the harness exploratory-recon layers
+# through the explicit adapter interface (``scholar_harness.recon.adapter`` +
+# ``scholar_harness.recon.lexicon.DomainLexicon``) via plain guarded imports
+# inside ``_ensure_harness_recon_loaded()``. There is no path mutation,
+# no source-tree discovery, and no env-override handling. If the harness package is importable the adapter binds and
+# ``RECON_CACHE_ROOT`` resolves via the adapter; otherwise the names stay
+# ``None`` and the recon tools report a typed missing-adapter envelope.
+# Standalone wheel installs have no harness distribution, which is
+# deliberately not a declared runtime dependency -- see the lazy-guard note
+# in pyproject.toml.
 #
-# E3/T-110b / F-AGT-01: this function MUST NOT raise. It is called at module
-# level, and ``nexus-scholar-harness`` is deliberately not a declared runtime
-# dependency (see the lazy-guard note in pyproject.toml), so on a standalone
-# wheel install the harness is genuinely absent. Raising here would make
-# ``import scholar_agent.server`` fail outright and defeat the whole point of
-# dropping the dependency. Returning "" simply means "nothing to inject": the
-# recon names stay None and the recon tools report a missing capability, which is
-# the documented fallback. The discovery order below is unchanged.
-def _harness_src() -> str:
-    env_override = os.environ.get("NEXUS_HARNESS_SRC")
-    if env_override:
-        return env_override
-    try:
-        # Installed-package layout (distribution wheel / site-packages):
-        # scholar_harness.recon imports normally, nothing to inject.
-        if importlib.util.find_spec("scholar_harness.recon") is not None:
-            return ""
-    except (ImportError, ValueError, AttributeError):
-        pass
-    here = Path(__file__).resolve()
-    for parent in here.parents:
-        candidate = parent / "src" / "scholar_harness" / "recon" / "__init__.py"
-        if candidate.is_file():
-            return str(parent / "src")
-    # Standalone install: the harness is not present and is not a declared
-    # dependency. Nothing to inject; recon stays lazily unavailable.
-    return ""
-
-
-_HARNESS_SRC = _harness_src()
-if _HARNESS_SRC and _HARNESS_SRC not in sys.path:
-    sys.path.insert(0, _HARNESS_SRC)
-
-# Recon cache root (P4): computed AFTER the scholar_harness import below via
-# ``canonical_recon_root()`` so CLI and MCP share the same CWD-independent
-# root (``NEXUS_RECON_ROOT`` override, else ``<project>/.cache/inception_recon``).
-# ``.cache/`` is gitignored in every checkout, so no repo pollution.
+# E3/T-110b / F-AGT-01: this function MUST NOT raise on a missing harness. It
+# is called at the top of every recon tool, and ``nexus-scholar-harness`` is
+# deliberately not a declared runtime dependency (see the lazy-guard note in
+# pyproject.toml), so on a standalone wheel install the harness is genuinely
+# absent. Raising here would defeat the whole point of dropping the
+# dependency. Returning False simply means "adapter unavailable": the recon
+# tools report a typed missing-adapter envelope, which is the documented
+# fallback.
+# Recon cache root (P4): resolved AFTER the adapter import via
+# ``_recon_adapter.resolve_cache_root()`` so CLI and MCP share the same
+# CWD-independent root (``NEXUS_RECON_ROOT`` override, else
+# ``<project>/.cache/inception_recon``). ``.cache/`` is gitignored in every
+# checkout, so no repo pollution.
 # Test/injection seam: when set, recon tools probe through this callable
-# instead of the kit SearchEngine (mirrors ReconEngine(search_fn=...)).
+# instead of the kit SearchEngine (mirrors make_engine(search_fn=...)).
 RECON_SEARCH_FN = None
 
-# Lazy-load harness recon to avoid hard runtime dependency (T-110b/F-AGT-01).
-# Imported on-demand by recon tools and paths that actually use them.
-DEFAULT_LEXICON = None  # type: ignore[assignment]
+# Lazy-load harness recon adapter to avoid hard runtime dependency (T-110b/F-AGT-01).
+# Bound on-demand by recon tools via _ensure_harness_recon_loaded().
+_recon_adapter = None  # type: ignore[assignment]
 DomainLexicon = None  # type: ignore[assignment]
-ReconEngine = None  # type: ignore[assignment]
-canonical_recon_root = None  # type: ignore[assignment]
-distill_pool = None  # type: ignore[assignment]
-execute_followups = None  # type: ignore[assignment]
-merge_lexicons = None  # type: ignore[assignment]
-compute_pool_sufficiency = None  # type: ignore[assignment]
-compute_topic_purity = None  # type: ignore[assignment]
 RECON_CACHE_ROOT = None
 
 _harness_recon_loaded = False
 
 
-def _ensure_harness_recon_loaded() -> None:
-    global \
-        _harness_recon_loaded, \
-        DEFAULT_LEXICON, \
-        DomainLexicon, \
-        ReconEngine, \
-        canonical_recon_root, \
-        distill_pool, \
-        execute_followups, \
-        merge_lexicons, \
-        RECON_CACHE_ROOT, \
-        compute_pool_sufficiency, \
-        compute_topic_purity
-    if _harness_recon_loaded:
-        return
+def _ensure_harness_recon_loaded() -> bool:
+    global _harness_recon_loaded, _recon_adapter, DomainLexicon, RECON_CACHE_ROOT
+    if _harness_recon_loaded and _recon_adapter is not None:
+        return True
     try:
-        from scholar_harness import recon as _recon
-        from scholar_harness.recon import gates as _recon_gates
+        from scholar_harness.recon import adapter as _recon_adapter
+        from scholar_harness.recon.lexicon import DomainLexicon as _DomainLexicon
 
-        DEFAULT_LEXICON = _recon.DEFAULT_LEXICON
-        DomainLexicon = _recon.DomainLexicon
-        ReconEngine = _recon.ReconEngine
-        canonical_recon_root = _recon.canonical_recon_root
-        distill_pool = _recon.distill_pool
-        execute_followups = _recon.execute_followups
-        merge_lexicons = _recon.merge_lexicons
-        RECON_CACHE_ROOT = canonical_recon_root()
-        compute_pool_sufficiency = _recon_gates.compute_pool_sufficiency
-        compute_topic_purity = _recon_gates.compute_topic_purity
+        DomainLexicon = _DomainLexicon
+        RECON_CACHE_ROOT = _recon_adapter.resolve_cache_root()
         _harness_recon_loaded = True
-    except Exception:
-        _harness_recon_loaded = True
+        return True
+    except ImportError:
+        _recon_adapter = None
+        DomainLexicon = None
+        return False
 
 
 mcp = MCPServer("ScholarAgentKit")
@@ -1784,10 +1736,21 @@ def recon_probe(
     only -- ``cache_key`` (T5.5 lineage), ``pool_path``, ``n_docs`` -- never
     prose.
     """
+    _ensure_harness_recon_loaded()
+    if _recon_adapter is None:
+        return json.dumps(
+            {
+                "status": "error",
+                "message": "harness recon adapter unavailable: scholar_harness.recon.adapter could not be imported",
+                "cache_key": None,
+            }
+        )
     try:
         sid = session_id if session_id is not None else _new_session_id()
         root = _session_root(sid)
-        engine = ReconEngine(cache_root=RECON_CACHE_ROOT, search_fn=RECON_SEARCH_FN)
+        engine = _recon_adapter.make_engine(
+            cache_root=RECON_CACHE_ROOT, search_fn=RECON_SEARCH_FN
+        )
         pool_file, n_docs = asyncio.run(
             engine.probe(
                 query=topic,
@@ -1879,6 +1842,15 @@ def recon_distill(session_id: str, lexicon_json: str | dict | None = None) -> st
     shares).  ``qei`` is deliberately never used alone -- it is a dispersion
     index that inverts on well-scoped semantic seeds.
     """
+    _ensure_harness_recon_loaded()
+    if _recon_adapter is None:
+        return json.dumps(
+            {
+                "status": "error",
+                "message": "harness recon adapter unavailable: scholar_harness.recon.adapter could not be imported",
+                "cache_key": None,
+            }
+        )
     try:
         lexicon = None
         artifact_prefix = "distilled"
@@ -1895,7 +1867,9 @@ def recon_distill(session_id: str, lexicon_json: str | dict | None = None) -> st
                 datasets=_validated_lexicon_fields(parsed.get("datasets"), "datasets"),
                 schools=_validated_lexicon_fields(parsed.get("schools"), "schools"),
             )
-            lexicon = merge_lexicons(DEFAULT_LEXICON, extra)
+            lexicon = _recon_adapter.merge_lexicon(
+                _recon_adapter.default_lexicon(), extra
+            )
             artifact_prefix = "distilled_lx" + _content_sha({"lexicon": parsed})[:12]
         session = load_session(str(session_id))
         if not session["pools"]:
@@ -1903,12 +1877,14 @@ def recon_distill(session_id: str, lexicon_json: str | dict | None = None) -> st
                 f"session {session_id} has no pool; run recon_probe first"
             )
         pool = json.loads(Path(session["pools"][-1]).read_text(encoding="utf-8"))
-        distilled = distill_pool(pool, lexicon=lexicon, query_text=session.get("topic"))
+        distilled = _recon_adapter.distill_terms(
+            pool, lexicon=lexicon, query_text=session.get("topic")
+        )
         root = _session_root(str(session_id))
         terms_file = _persist_artifact(root, artifact_prefix, distilled).resolve()
         save_session(session)
-        pool_gate = compute_pool_sufficiency(len(pool.get("docs", []) or []))
-        purity = compute_topic_purity(distilled.get("topics") or [])
+        pool_gate = _recon_adapter.pool_gate(len(pool.get("docs", []) or []))
+        purity = _recon_adapter.topic_gate(distilled.get("topics") or [])
         return json.dumps(
             {
                 "session_id": str(session_id),
@@ -1957,6 +1933,15 @@ def recon_delta(session_id: str, followups: int = 3) -> str:
     (``scant|sparse|dense|unknown``) so pool-thinness can be read as real
     scarcity (``13_evaluation.md`` section 3.4).
     """
+    _ensure_harness_recon_loaded()
+    if _recon_adapter is None:
+        return json.dumps(
+            {
+                "status": "error",
+                "message": "harness recon adapter unavailable: scholar_harness.recon.adapter could not be imported",
+                "cache_key": None,
+            }
+        )
     try:
         session = load_session(str(session_id))
         if not session["pools"]:
@@ -1964,11 +1949,23 @@ def recon_delta(session_id: str, followups: int = 3) -> str:
                 f"session {session_id} has no pool; run recon_probe first"
             )
         pool = json.loads(Path(session["pools"][-1]).read_text(encoding="utf-8"))
-        distilled = distill_pool(pool)
+        distilled = _recon_adapter.distill_terms(pool)
         budget = max(0, min(int(followups), 3))
-        engine = ReconEngine(cache_root=RECON_CACHE_ROOT, search_fn=RECON_SEARCH_FN)
+        # Fresh-engine equivalence: the engine holds no per-probe mutable
+        # state, so building via the adapter and letting run_followups resolve
+        # its own engine from the same cache_root/search_fn is behavior
+        # identical to passing the tool-built engine.
+        _recon_adapter.make_engine(
+            cache_root=RECON_CACHE_ROOT, search_fn=RECON_SEARCH_FN
+        )
         result = asyncio.run(
-            execute_followups(pool, distilled, engine, max_followups=budget)
+            _recon_adapter.run_followups(
+                pool,
+                distilled,
+                cache_root=RECON_CACHE_ROOT,
+                search_fn=RECON_SEARCH_FN,
+                max_followups=budget,
+            )
         )
         root = _session_root(str(session_id))
         merged_pool = result["pool"]
